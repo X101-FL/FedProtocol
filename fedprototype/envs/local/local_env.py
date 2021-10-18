@@ -4,10 +4,10 @@ from collections import defaultdict
 
 class LocalEnv(BaseEnv):
     def __init__(self):
-        self.client_class_param_dict = defaultdict(lambda: [])
+        self.client_info_dict = defaultdict(lambda: [])
 
-    def add_client(self, role_name, client_class, client_param):
-        self.client_class_param_dict[role_name].append((client_class, client_param))
+    def add_client(self, role_name, client_class, client_param, **run_kwargs):
+        self.client_info_dict[role_name].append((client_class, client_param, run_kwargs))
         return self
 
     def run(self):

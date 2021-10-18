@@ -11,10 +11,10 @@ class SocketEnv(BaseEnv):
         self.role_name_ip_dict[role_name].append((ip, port))
         return self
 
-    def run(self, client_class, client_params, role_name, role_index=0):
+    def run(self, client_class, client_params, role_name, role_index=0, **run_kwargs):
         client = self._get_client(client_class, role_name, role_index)
         client.init_client(client_params)
-        return client.run()
+        return client.run(**run_kwargs)
 
     def _get_client(self, client_class, role_name, role_index):
         client = client_class()

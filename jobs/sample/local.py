@@ -22,10 +22,20 @@ def get_passive_args(argv=None):
     return args
 
 
+def get_active_run_kwargs():
+    return {'id_list': None, 'label': None, 'features': None}
+
+
+def get_passive_run_kwargs():
+    return {'id_list': None, 'features': None}
+
+
 if __name__ == '__main__':
     from fedprototype.envs import LocalEnv
 
     LocalEnv() \
-        .add_client(role_name='active', client_class=Active, client_param=get_active_args()) \
-        .add_client(role_name='passive', client_class=Passive, client_param=get_passive_args()) \
+        .add_client(role_name='active', client_class=Active, client_param=get_active_args(),
+                    **get_active_run_kwargs()) \
+        .add_client(role_name='passive', client_class=Passive, client_param=get_passive_args(),
+                    **get_passive_run_kwargs()) \
         .run()

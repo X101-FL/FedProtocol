@@ -14,6 +14,12 @@ def get_args(argv=None):
     return args
 
 
+def get_run_kwargs():
+    # return {'id_list': [...], 'label': [...], 'features': tensor} for Active
+    # return {'id_list': [...], 'features': tensor} for Passive
+    return {}
+
+
 if __name__ == '__main__':
     args = get_args()
     client_class = {'active': Active, 'passive': Passive}[args.role]
@@ -22,4 +28,4 @@ if __name__ == '__main__':
     SocketEnv() \
         .add_client(role_name='active', ip="xxx.xxx.xxx.xxx", port=5650) \
         .add_client(role_name='passive', ip="yyy.yyy.yyy.yyy", port=5651) \
-        .run(client_class=client_class, client_params=args, role_name=args.role)
+        .run(client_class=client_class, client_params=args, role_name=args.role, **get_run_kwargs())

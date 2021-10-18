@@ -13,7 +13,7 @@ class BaseClient(ABC):
         pass
 
     @abstractmethod
-    def run(self, *args, **kwargs):
+    def run(self, **kwargs):
         pass
 
     def set_comm(self, comm):

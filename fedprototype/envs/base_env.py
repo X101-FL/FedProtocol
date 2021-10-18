@@ -8,5 +8,5 @@ class BaseEnv(ABC):
         pass
 
     @abstractmethod
-    def run(self, role_name, client_class, client_params, role_index=0):
+    def run(self, *args, **kwargs):
         pass
