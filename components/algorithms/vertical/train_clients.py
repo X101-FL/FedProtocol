@@ -1,22 +1,26 @@
 from fedprototype import BaseClient
 
 
-# noinspection PyAttributeOutsideInit
-class Active(BaseClient):
+class ActiveTrainClient(BaseClient):
+    def __init__(self, encrypt_key_size, batch_size):
+        super().__init__("active")
+        self.encrypt_key_size = encrypt_key_size
+        self.batch_size = batch_size
 
-    def init_client(self, params):
-        self.encrypt_key_size = params.encrypt_key_size
-        # ...
+    def init(self):
+        self._init_encrypt_keys()
 
     def run(self, id_list, label, features):
         # ...
-        self._init_encrypt_keys()
         # ...
         # return {"model": self.model,
         #         "predicted_label": self.predicted_label,
         #         "encrypt_keys": (self.public_key, self.private_key)
         #         ...
         #         }
+        pass
+
+    def close(self):
         pass
 
     def _init_encrypt_keys(self):
@@ -27,12 +31,12 @@ class Active(BaseClient):
         pass
 
 
-# noinspection PyAttributeOutsideInit
-class Passive(BaseClient):
+class PassiveTrainClient(BaseClient):
+    def __init__(self, encrypt_key_size):
+        super().__init__("passive")
+        self.encrypt_key_size = encrypt_key_size
 
-    def init_client(self, params):
-        self.encrypt_key_size = params.encrypt_key_size
-        # ...
+    def init(self):
         pass
 
     def run(self, id_list, features):
@@ -42,4 +46,7 @@ class Passive(BaseClient):
         #         "encrypt_keys": (self.public_key, self.private_key)
         #         ...
         #         }
+        pass
+
+    def close(self):
         pass

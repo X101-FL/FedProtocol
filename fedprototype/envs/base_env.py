@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 class BaseEnv(ABC):
 
     @abstractmethod
-    def add_client(self, role_name, *args, **kwargs):
+    def add_client(self, *args, **kwargs):
         pass
 
     @abstractmethod

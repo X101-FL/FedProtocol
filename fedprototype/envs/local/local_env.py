@@ -6,8 +6,8 @@ class LocalEnv(BaseEnv):
     def __init__(self):
         self.client_info_dict = defaultdict(lambda: [])
 
-    def add_client(self, role_name, client_class, client_param, **run_kwargs):
-        self.client_info_dict[role_name].append((client_class, client_param, run_kwargs))
+    def add_client(self, client, **run_kwargs):
+        self.client_info_dict[client.role_name].append((client, run_kwargs))
         return self
 
     def run(self):
