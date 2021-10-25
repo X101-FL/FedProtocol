@@ -2,11 +2,12 @@ from fedprototype.envs.base_comm import BaseComm
 
 
 class LocalComm(BaseComm):
-    def send(self, obj, message_name, role_name, role_index=0):
+
+    def send(self, role_name, message_name, obj):
         pass
 
-    def get(self, message_name, role_name, role_index=0, timeout=-1):
+    def get(self, role_name, message_name, timeout=-1):
         pass
 
-    def watch(self, message_role_name_index_tuple_list, timeout=-1):
+    def watch(self, role_message_name_tuple_list, timeout=-1):
         pass
