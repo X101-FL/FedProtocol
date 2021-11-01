@@ -3,11 +3,11 @@ from abc import ABC, abstractmethod
 
 class BaseComm(ABC):
     @abstractmethod
-    def send(self, role_name, message_name, obj):
+    def send(self, receiver, message_name, obj):
         pass
 
     @abstractmethod
-    def get(self, role_name, message_name, timeout=-1):
+    def receive(self, sender, message_name, timeout=-1):
         pass
 
     @abstractmethod
