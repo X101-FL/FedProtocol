@@ -10,12 +10,15 @@ class BaseComm(ABC):
     def receive(self, sender, message_name, timeout=-1):
         pass
 
+    def watch(self, sender_prefix, message_name, timeout=-1):
+        sender_list = self.get_role_name_list(sender_prefix)
+        sender_message_name_tuple_list = [(sender, message_name) for sender in sender_list]
+        return self.watch_(sender_message_name_tuple_list, timeout)
+
     @abstractmethod
-    def watch(self, role_message_name_tuple_list, timeout=-1):
-        """
-        监听一组消息的接收，一旦收到某个src发送的消息，则立刻通过迭代器返回结果
-        :parameter role_message_name_tuple_list: list[(role_name, message_name)]
-        :param timeout:
-        :return: iter[((role_name, message_name),obj)]
-        """
+    def watch_(self, sender_message_name_tuple_list, timeout=-1):
+        pass
+
+    @abstractmethod
+    def get_role_name_list(self, role_name_prefix):
         pass

@@ -14,5 +14,5 @@ class TCPComm(BaseComm):
     def receive(self, sender, message_name, timeout=-1):
         pass
 
-    def watch(self, role_message_name_tuple_list, timeout=-1):
+    def watch(self, sender_message_name_tuple_list, timeout=-1):
         pass
