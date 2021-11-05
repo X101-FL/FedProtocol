@@ -4,9 +4,6 @@ import numpy as np
 from fedprototype import BaseClient
 
 
-PASSIVE_NUM = 5
-
-
 class ActiveClient(BaseClient):
 
     def __init__(self, role_name):
@@ -16,14 +13,14 @@ class ActiveClient(BaseClient):
         pass
 
     def run(self, id_list):
-        for i in range(PASSIVE_NUM):
-            self.comm.send(f"Passive.{i}", "id_list", id_list)
-            self.logger.debug(f"Successfully send id_list to Passive.{i}!")
+        for passive in self.comm.get_role_name_list("Passive"):
+            self.comm.send(f"{passive}", "id_list", id_list)
+            self.logger.debug(f"Successfully send id_list to {passive}!")
+
         self.logger.debug(f"Successfully send id_list to all Passives!")
 
-        for i in range(PASSIVE_NUM):
-            feature = self.comm.receive(f"Passive.{i}", "feature")
-            self.logger.debug(f"Successfully receive feature from Passive.{i}, its value is {feature}.")
+        for sender, message_name, feature in self.comm.watch("Passive", "feature"):
+            self.logger.debug(f"Successfully receive feature from {sender}, its value is {feature}.")
         self.logger.debug(f"Successfully receive feature from all Passives!")
 
     def close(self):
@@ -64,8 +61,10 @@ def get_passive_run_kwargs(passive_id):
 if __name__ == '__main__':
     from fedprototype.envs import LocalEnv
 
+    PASSIVE_NUM = 4
+
     env = LocalEnv()
-    env.add_client(client=ActiveClient(role_name="Active"), **get_active_run_kwargs())
     for pid in range(PASSIVE_NUM):
-        env.add_client(client=PassiveClient(role_name=f"Passive.{pid}"),**get_passive_run_kwargs(pid))
+        env.add_client(client=PassiveClient(role_name=f"Passive.{pid}"), **get_passive_run_kwargs(pid))
+    env.add_client(client=ActiveClient(role_name="Active"), **get_active_run_kwargs())
     env.run()

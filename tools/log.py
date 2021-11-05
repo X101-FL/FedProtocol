@@ -19,8 +19,8 @@ class LoggerFactory:
         return handler
 
     @staticmethod
-    def get_logger(role_name):
-        logger = logging.getLogger(role_name)
+    def get_logger(name):
+        logger = logging.getLogger(name)
         logger.setLevel(LoggerFactory.LEVEL)
         stream_handler = LoggerFactory.get_handler()
         logger.addHandler(stream_handler)
