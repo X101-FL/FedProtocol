@@ -1,21 +1,23 @@
 from copy import deepcopy
 from collections import Counter
 
+from tools.log import LoggerFactory
 from fedprototype.envs.base_comm import BaseComm
 from fedprototype.envs.local.message_hub import WatchMessageQueue
 
 
 class LocalComm(BaseComm):
 
-    def __init__(self, role_name, role_name_set, msg_hub, serial_lock, logger):
+    def __init__(self, role_name, other_role_name_set, msg_hub, serial_lock):
         self.role_name = role_name
-        self.role_name_set = role_name_set
-        self.serial_lock = serial_lock
+        self.other_role_name_set = other_role_name_set
         self.msg_hub = msg_hub
-        self.logger = logger
+        self.serial_lock = serial_lock
+
+        self.logger = LoggerFactory.get_logger(f"{role_name} [{LocalComm.__name__}]")
 
     def send(self, receiver, message_name, obj):
-        assert receiver in self.role_name_set
+        assert receiver in self.other_role_name_set, f"unknown receiver : {receiver}"
         message_id = self._get_message_id(self.role_name, receiver, message_name)
 
         if receiver not in self.msg_hub.watch_index_dict:
@@ -35,7 +37,7 @@ class LocalComm(BaseComm):
                                   f"put data into watch_index_dict")
 
     def receive(self, sender, message_name, timeout=-1):
-        assert sender in self.role_name_set
+        assert sender in self.other_role_name_set, f"unknown sender : {sender}"
         message_id = self._get_message_id(sender, self.role_name, message_name)
         message_queue = self.msg_hub.index_dict[message_id]
         return self._get_message(message_queue, timeout)
@@ -62,7 +64,7 @@ class LocalComm(BaseComm):
             del self.msg_hub.watch_index_dict[self.role_name]
 
     def get_role_name_list(self, role_name_prefix):
-        return [role_name for role_name in self.role_name_set if role_name.startswith(role_name_prefix)]
+        return [role_name for role_name in self.other_role_name_set if role_name.startswith(role_name_prefix)]
 
     def _get_message(self, message_queue, timeout):
         if message_queue.empty():

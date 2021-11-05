@@ -21,7 +21,10 @@ class BaseClient(ABC):
         pass
 
     def set_sub_client(self, sub_client, role_rename_dict=None):
-        sub_comm = CommRenameWrapper(self.comm, role_rename_dict)
+        if role_rename_dict:
+            sub_comm = CommRenameWrapper(sub_client.role_name, self.comm, role_rename_dict)
+        else:
+            sub_comm = self.comm
         sub_client.set_comm(sub_comm)
         sub_client.set_logger(self.logger)
 

@@ -12,9 +12,10 @@ class LocalEnv(BaseEnv):
     def __init__(self):
         self.serial_lock = threading.Lock()
         self.client_info_dict = {}
-        self.logger = LoggerFactory.get_logger(role_name=LocalEnv.__name__)
         self.role_name_set = None
         self.msg_hub = MessageHub()
+
+        self.logger = LoggerFactory.get_logger(name=LocalEnv.__name__)
 
     def add_client(self, client, **run_kwargs):
         self.client_info_dict[client.role_name] = (client, run_kwargs)
@@ -43,11 +44,14 @@ class LocalEnv(BaseEnv):
         self.logger.debug(f"All task done!!!")
 
     def _get_comm(self, client):
-        return LocalComm(client.role_name, self.role_name_set, self.msg_hub, self.serial_lock, client.logger)
+        return LocalComm(role_name=client.role_name,
+                         other_role_name_set=(self.role_name_set - {client.role_name}),
+                         msg_hub=self.msg_hub,
+                         serial_lock=self.serial_lock)
 
     @classmethod
     def _get_logger(cls, client):
-        return LoggerFactory.get_logger(role_name=client.role_name)
+        return LoggerFactory.get_logger(name=client.role_name)
 
     def _set_client(self, client):
         client.set_logger(self._get_logger(client))

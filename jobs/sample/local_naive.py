@@ -16,6 +16,7 @@ class ActiveClient(BaseClient):
         for passive in self.comm.get_role_name_list("Passive"):
             self.comm.send(f"{passive}", "id_list", id_list)
             self.logger.debug(f"Successfully send id_list to {passive}!")
+
         self.logger.debug(f"Successfully send id_list to all Passives!")
 
         for sender, message_name, feature in self.comm.watch("Passive", "feature"):
@@ -60,7 +61,7 @@ def get_passive_run_kwargs(passive_id):
 if __name__ == '__main__':
     from fedprototype.envs import LocalEnv
 
-    PASSIVE_NUM = 5
+    PASSIVE_NUM = 4
 
     env = LocalEnv()
     for pid in range(PASSIVE_NUM):
