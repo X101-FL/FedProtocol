@@ -7,12 +7,11 @@ from fedprototype import BaseClient
 
 class PSIServer(BaseClient):
 
-    def __init__(self, words):
+    def __init__(self):
         super().__init__("PSIServer")
 
         self.s = 5
-        self.words = words
-
+        self.words = None
         self.oprf_server = OPRFServer(512)
 
     def init(self):
@@ -20,7 +19,9 @@ class PSIServer(BaseClient):
                                                                 "OPRFClient": "PSIClient"})
         self.oprf_server.init()
 
-    def run(self):
+    def run(self, words):
+        words = [word.to_bytes(4, "big") for word in words]
+        self.words = words
         n = self.oprf_server.max_count - self.s
         for i in range(3):
             words = random.sample(self.words, len(self.words))
@@ -48,8 +49,7 @@ class PSIServer(BaseClient):
                 break
             res.append(word)
 
-        return res
-        pass
+        return sorted([int.from_bytes(val, "big") for val in res])
 
     def close(self):
         pass
@@ -57,8 +57,15 @@ class PSIServer(BaseClient):
 
 class PSIClient(BaseClient):
 
-    def __init__(self, words):
+    def __init__(self):
         super().__init__("PSIClient")
+        self.n = None
+        self.table = None
+        self.stash = None
+        self.table_hash_index = None
+        self.oprf_client = OPRFClient(512)
+
+    def oprf_init(self, words):
         self.n = int(1.2 * len(words))
         s = 5
         cuckoo = CuckooHashTable(self.n, s)
@@ -80,14 +87,15 @@ class PSIClient(BaseClient):
                 key = random.getrandbits(64).to_bytes(8, "big")
             dummy_table.append(key)
 
-        self.oprf_client = OPRFClient(dummy_table, 512)
+        self.oprf_client.complete_init(dummy_table)
 
     def init(self):
         self.set_sub_client(self.oprf_client, role_rename_dict={"OPRFServer": "PSIServer",
                                                                 "OPRFClient": "PSIClient"})
-        self.oprf_client.init()
 
-    def run(self):
+    def run(self, words):
+        words = [word.to_bytes(4, "big") for word in words]
+        self.oprf_init(words)
         peer_tables = [{}, {}, {}]
         peer_stash = {}
         for table in peer_tables:
@@ -117,12 +125,12 @@ class PSIClient(BaseClient):
             if key is not None:
                 local_val = self.oprf_client.run(i + self.n)
                 self.logger.debug(f"table position {i + self.n}, "
-                              f"word {int.from_bytes(key, 'big')}, val {local_val.hex()}")
+                                  f"word {int.from_bytes(key, 'big')}, val {local_val.hex()}")
                 if local_val in peer_stash:
                     res.append(key)
                     self.comm.send(receiver="PSIServer", message_name="word", obj=key)
         self.comm.send(receiver="PSIServer", message_name="word", obj=b"end")
-        return res
+        return sorted([int.from_bytes(val, "big") for val in res])
 
     def close(self):
         pass

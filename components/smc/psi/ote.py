@@ -1,4 +1,4 @@
-from components.smc.psi.base_trans import BaseSender, BaseReceiver
+from components.smc.psi.base import BaseSender, BaseReceiver
 from components.smc.tools.arr import rand_binary_arr
 from components.smc.tools.serialize import *
 from components.smc.tools.pack import pack, unpack
@@ -49,12 +49,13 @@ class OTESender(BaseClient):
             q_cols.append(q_col)
 
     def ote_init(self, m, q_cols):
-        receiver = OTEReceiver(self._s, 128)
-        self.set_sub_client(receiver, role_rename_dict={"OTESender": "OTEReceiver", "OTEReceiver": "OTESender"})
-        receiver.init()
+        ote_receiver = OTEReceiver(self._s, 128)
+        self.set_sub_client(ote_receiver, role_rename_dict={"OTESender": "OTEReceiver",
+                                                            "OTEReceiver": "OTESender"})
+        ote_receiver.init()
 
         for i in range(self._s.size):
-            q_col = receiver.run()
+            q_col = ote_receiver.run()
             if m == 0:
                 m = len(q_col)
             else:
@@ -135,13 +136,14 @@ class OTEReceiver(BaseClient):
             self.base_sender.run(t_col_bytes, u_col_bytes)
 
     def ote_init(self, u):
-        sender = OTESender(128)
-        self.set_sub_client(sender, role_rename_dict={"OTESender": "OTEReceiver", "OTEReceiver": "OTESender"})
-        sender.init()
+        ote_sender = OTESender(128)
+        self.set_sub_client(ote_sender, role_rename_dict={"OTESender": "OTEReceiver",
+                                                          "OTEReceiver": "OTESender"})
+        ote_sender.init()
         for i in range(self._codewords):
             t_col_bytes = bit_arr_to_bytes(self._t[:, i])
             u_col_bytes = bit_arr_to_bytes(u[:, i])
-            sender.run(t_col_bytes, u_col_bytes)
+            ote_sender.run(t_col_bytes, u_col_bytes)
 
     def run(self):
         key = int_to_bytes(self._index) + bit_arr_to_bytes(self._t[self._index, :])

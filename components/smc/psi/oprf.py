@@ -1,7 +1,7 @@
 import numpy as np
 from Crypto.Hash import SHAKE256, SHA256
 
-from components.smc.psi.base_trans import BaseSender, BaseReceiver
+from components.smc.psi.base import BaseSender, BaseReceiver
 from components.smc.psi.ote import OTESender, OTEReceiver
 from components.smc.tools.arr import rand_binary_arr
 from components.smc.tools.serialize import int_to_bytes, bytes_to_bit_arr, bit_arr_to_bytes
@@ -10,7 +10,7 @@ from fedprototype import BaseClient
 
 class OPRFClient(BaseClient):
 
-    def __init__(self, r, codewords=128):
+    def __init__(self, codewords=128):
         """
         :param r: Sequence[bytes]
         :param codewords:
@@ -22,20 +22,22 @@ class OPRFClient(BaseClient):
                              f" it should be greater equal than 128 to ensure security")
         self._codewords = codewords
 
+        self._r = None
+        self._t = None
+
+        self.base_sender = BaseSender()
+
+    def early_init(self, r):
         self._r = np.empty((len(r), self._codewords), dtype=np.uint8)
         codewords_bytes = int_to_bytes(self._codewords)
         for i, word in enumerate(r):
             word_arr = bytes_to_bit_arr(codewords_bytes + self._encode(word))
             self._r[i] = word_arr
 
-        self._t = None
-
-        self.base_sender = BaseSender()
-
-    def _encode(self, data):
-        shake = SHAKE256.new(data)
-        length = (self._codewords + 7) // 8
-        return shake.read(length)
+    def complete_init(self, r):
+        """ call this function to init rather than old init()"""
+        self.early_init(r)
+        self.init()
 
     def init(self):
         self.set_sub_client(self.base_sender, role_rename_dict={"BaseSender": "OPRFClient",
@@ -82,6 +84,11 @@ class OPRFClient(BaseClient):
         if self._r is None:
             return 0
         return self._r.shape[0]
+
+    def _encode(self, data):
+        shake = SHAKE256.new(data)
+        length = (self._codewords + 7) // 8
+        return shake.read(length)
 
 
 class OPRFServer(BaseClient):
