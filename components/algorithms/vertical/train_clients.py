@@ -1,22 +1,25 @@
-from fedprototype import BaseClient
-from encrypt.paillier import PaillierKeypair
 import numpy as np
 import torch
 import torch.nn as nn
+
 from components.algorithms.vertical.models import ActiveModel, PassiveModel
+from encrypt.paillier import PaillierKeypair
+from fedprototype import BaseClient
 
 
 class ActiveTrainClient(BaseClient):
-    def __init__(self, role_name, encrypt_key_size=0, alpha=0.001, batch_size=32, epoch=100, feature_size=2):
-        super(ActiveTrainClient, self).__init__(role_name)
-        self.encrypt_key_size = encrypt_key_size
-        self.alpha = alpha
-        self.batch_size = batch_size
-        self.epoch = epoch
-        self.feature_size = feature_size
-        self.model = None
-        self.loss_func = None
-        self.optimizer = None
+
+    def __init__(self, **kwargs):
+        super(ActiveTrainClient, self).__init__("Active")
+        self.encrypt_key_size = 0
+        self.alpha = kwargs["alpha"]
+        self.batch_size = kwargs["batch_size"]
+        self.epoch = kwargs["epoch"]
+        self.feature_size = kwargs["feature_size"]
+        self.model = ActiveModel(self.feature_size)
+        # self.loss_func = nn.CrossEntropyLoss()  # 多分类时使用
+        self.loss_func = nn.BCEWithLogitsLoss() # 二分类时使用
+        self.optimizer = torch.optim.SGD(self.model.parameters(), lr=self.alpha)
         self.batch_feature = None
         self.batch_label = None
         self.batch_output = None
@@ -25,20 +28,12 @@ class ActiveTrainClient(BaseClient):
 
     def init(self):
         self._init_encrypt_keys()
-        self.model = ActiveModel(self.feature_size)
-        # self.loss_func = nn.CrossEntropyLoss()  # 多分类时使用
-        self.loss_func = nn.BCEWithLogitsLoss()  # 二分类时使用
-        self.optimizer = torch.optim.SGD(self.model.parameters(),
-                                         lr=self.alpha)
 
-    def run(self, id_list, label, features):
-        features_common = []
-        label_common = []
-        for i in id_list:
-            features_common.append(features[i])
-            label_common.append(label[i])
+    def run(self, features, label):
         for i in range(self.epoch):
-            self.train_a_epoch(label_common,features_common)
+            self.train_a_epoch(label, features)
+            print(
+                f"epoch: [{i} / {self.epoch}]  epoch_loss: {self.batch_loss}   epoch_acc: {self.batch_acc}")
         return {"model": self.model}
 
     def train_a_epoch(self, label, features):
@@ -48,10 +43,12 @@ class ActiveTrainClient(BaseClient):
         for batch_num in range(num_batches_per_epoch):
             start_index = batch_num * self.batch_size
             end_index = min((batch_num + 1) * self.batch_size, data_size)
-            self.train_a_batch(label[start_index:end_index], features[start_index:end_index])
+            self.train_a_batch(
+                label[start_index:end_index], features[start_index:end_index])
 
     def train_a_batch(self, batch_label, batch_features):
-        self.batch_feature = torch.tensor(batch_features, dtype=torch.float, requires_grad=True)
+        self.batch_feature = torch.tensor(
+            batch_features, dtype=torch.float, requires_grad=True)
         self.batch_label = torch.tensor(batch_label, dtype=torch.float)
 
         # STEP2: Compute Θ^A * x_i^A for i ∈ D_A,receive Θ^B x_i^B from B
@@ -69,7 +66,8 @@ class ActiveTrainClient(BaseClient):
         full_output = self.batch_output + passive_output
         self.batch_loss = self.loss_func(full_output, self.batch_label)
         self.batch_loss.backward()
-        # self.batch_acc = (torch.round(torch.sigmoid(full_output)) == self.batch_label).float().mean()
+        self.batch_acc = (torch.round(torch.sigmoid(full_output))
+                          == self.batch_label).float().mean()
 
         # STEP6: Update Θ^A
         self.optimizer.step()
@@ -79,12 +77,16 @@ class ActiveTrainClient(BaseClient):
         passive_bias_y_grad_encrypted = self.encrypt_func(passive_bias_y_grad)
 
         # STEP3: send [[(y_i-y_i_hat)]] to B for i ∈ D_A
-        self.comm.send(f"Passive", "passive_bias_y_grad_encrypted", passive_bias_y_grad_encrypted)
-        self.logger.debug(f"Successfully send passive_bias_y_grad_encrypted to Passive!")
+        self.comm.send(f"Passive", "passive_bias_y_grad_encrypted",
+                       passive_bias_y_grad_encrypted)
+        self.logger.debug(
+            f"Successfully send passive_bias_y_grad_encrypted to Passive!")
 
         # STEP4: receive [[ΔL/ΔΘ^B]] + [[R_B]] from B
-        passive_grad_encrypted_noised = self.comm.receive("Passive", "passive_grad_encrypted_noised")
-        self.logger.debug(f"Successfully receive passive_grad_encrypted_noised from Passive!")
+        passive_grad_encrypted_noised = self.comm.receive(
+            "Passive", "passive_grad_encrypted_noised")
+        self.logger.debug(
+            f"Successfully receive passive_grad_encrypted_noised from Passive!")
 
         # STEP5: Decrypt [[ΔL/ΔΘ^B]] + [[R_B]]
         passive_grad_noised = self.decrypt_func(passive_grad_encrypted_noised)
@@ -94,7 +96,8 @@ class ActiveTrainClient(BaseClient):
         self.logger.debug(f"Successfully send passive_grad_noised to Passive!")
 
     def _init_encrypt_keys(self):
-        self.public_key, self.private_key = PaillierKeypair.generate_keypair(n_length=1024, precision=1e-8)
+        self.public_key, self.private_key = PaillierKeypair.generate_keypair(
+            n_length=1024, precision=1e-8)
         self.encrypt_func = np.frompyfunc(self.public_key.encrypt, 1, 1)
         self.decrypt_func = np.frompyfunc(self.private_key.decrypt, 1, 1)
         self.comm.send("Passive", "public_key", self.public_key)
@@ -105,13 +108,13 @@ class ActiveTrainClient(BaseClient):
 
 
 class PassiveTrainClient(BaseClient):
-    def __init__(self, role_name, encrypt_key_size=0, alpha=0.001, batch_size=32, epoch=100, feature_size=2):
-        super(PassiveTrainClient, self).__init__(role_name)
-        self.encrypt_key_size = encrypt_key_size
-        self.alpha = alpha
-        self.batch_size = batch_size
-        self.epoch = epoch
-        self.feature_size = feature_size
+    def __init__(self, **kwargs):
+        super(PassiveTrainClient, self).__init__("Passive")
+        self.encrypt_key_size = 0
+        self.alpha = kwargs["alpha"]
+        self.batch_size = kwargs["batch_size"]
+        self.epoch = kwargs["epoch"]
+        self.feature_size = kwargs["feature_size"]
         self.model = None
         self.optimizer = None
         self.batch_feature = None
@@ -123,12 +126,9 @@ class PassiveTrainClient(BaseClient):
         self.optimizer = torch.optim.SGD(self.model.parameters(),
                                          lr=self.alpha)
 
-    def run(self, id_list, features):
-        features_common = []
-        for i in id_list:
-            features_common.append(features[i])
+    def run(self, features):
         for i in range(self.epoch):
-            self.train_a_epoch(features_common)
+            self.train_a_epoch(features)
         return {"model": self.model}
 
     def train_a_epoch(self, features):
@@ -141,7 +141,8 @@ class PassiveTrainClient(BaseClient):
             self.train_a_batch(features[start_index:end_index])
 
     def train_a_batch(self, batch_features):
-        self.batch_feature = torch.tensor(batch_features, dtype=torch.float, requires_grad=True)
+        self.batch_feature = torch.tensor(
+            batch_features, dtype=torch.float, requires_grad=True)
 
         # STEP2: Compute Θ^B x_i^B for i ∈ D_B
         self.batch_output = self.model.forward(self.batch_feature)
@@ -151,30 +152,39 @@ class PassiveTrainClient(BaseClient):
         self.logger.debug("Successfully send passive_output to Active!")
 
         # STEP3: receive [[(y_i-y_i_hat)]] from A
-        passive_bias_y_grad_encrypted = self.comm.receive("Active", "passive_bias_y_grad_encrypted")
-        self.logger.debug(f"Successfully receive passive_bias_y_grad_encrypted from Active.")
+        passive_bias_y_grad_encrypted = self.comm.receive(
+            "Active", "passive_bias_y_grad_encrypted")
+        self.logger.debug(
+            f"Successfully receive passive_bias_y_grad_encrypted from Active.")
 
         # STEP4: Compute [[ΔL/ΔΘ^B]]
-        passive_grad_encrypted = np.dot(passive_bias_y_grad_encrypted.T, batch_features)
+        passive_grad_encrypted = np.dot(
+            passive_bias_y_grad_encrypted.T, batch_features)
 
         # STEP4: generate random number R_B
         grad_noise = np.random.random(passive_grad_encrypted.shape) * 0.01
         self.logger.debug(f"Successfully initialize random noise.")
 
         # STEP4: send [[ΔL/ΔΘ^B]] + [[R_B]] to A
-        passive_grad_encrypted_noised = passive_grad_encrypted + self.encrypt_func(grad_noise)
-        self.comm.send("Active", "passive_grad_encrypted_noised", passive_grad_encrypted_noised)
-        self.logger.debug("Successfully send passive_grad_encrypted_noised to Active!")
+        passive_grad_encrypted_noised = passive_grad_encrypted + \
+            self.encrypt_func(grad_noise)
+        self.comm.send("Active", "passive_grad_encrypted_noised",
+                       passive_grad_encrypted_noised)
+        self.logger.debug(
+            "Successfully send passive_grad_encrypted_noised to Active!")
 
         # STEP5: receive ΔL/ΔΘ^B + R_B from A
-        passive_grad_noised = self.comm.receive("Active", "passive_grad_noised")
-        self.logger.debug(f"Successfully receive passive_grad_noised from Active.")
+        passive_grad_noised = self.comm.receive(
+            "Active", "passive_grad_noised")
+        self.logger.debug(
+            f"Successfully receive passive_grad_noised from Active.")
 
         # STEP6: Update Θ^B
         self.optimizer.zero_grad()
         passive_grad = passive_grad_noised - grad_noise
         model_w = self.model.linear.weight
-        model_w.grad = torch.tensor(passive_grad.astype(float), dtype=torch.float32)
+        model_w.grad = torch.tensor(
+            passive_grad.astype(float), dtype=torch.float32)
         self.optimizer.step()
 
     def _init_encrypt_keys(self):
