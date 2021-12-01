@@ -16,7 +16,7 @@ class LocalComm(BaseComm):
 
         self.logger = LoggerFactory.get_logger(f"{role_name} [{LocalComm.__name__}]")
 
-    def send(self, receiver, message_name, obj):
+    def _send(self, receiver, message_name, obj):
         assert receiver in self.other_role_name_set, f"unknown receiver : {receiver}"
         message_id = self._get_message_id(self.role_name, receiver, message_name)
 
@@ -35,6 +35,36 @@ class LocalComm(BaseComm):
                 self._modify_count_dict(watch_message_queue.counter, counter_id)
                 self.logger.debug(f"({self.role_name}, {message_name}) is watched by {receiver}, "
                                   f"put data into watch_index_dict")
+
+    def _send_cache(self, receiver, message_name, obj):
+        self.msg_hub.cache_pool[self.role_name].put(receiver, message_name, obj)
+        self.logger.debug(f"put message[{receiver} {message_name}] into cache pool")
+
+    def commit(self, receiver=None, message_name=None):
+        meta_cache_pool = self.msg_hub.cache_pool[self.role_name]
+        if receiver is None and message_name is None:
+            for recv, meta_cache in meta_cache_pool.cache_dict.items():
+                for msg_name, obj_list in meta_cache_pool.cache_dict[recv].items():
+                    [self._send(recv, msg_name, obj) for obj in obj_list]
+            del self.msg_hub.cache_pool[self.role_name]
+            self.logger.debug(f"commit all messages")
+        if receiver and message_name:
+            [self._send(receiver, message_name, obj) for obj in meta_cache_pool.cache_dict[receiver][message_name]]
+            del meta_cache_pool.cache_dict[receiver][message_name]
+            del meta_cache_pool.key_mapping[message_name][receiver]
+            self.logger.debug(f"commit messages with {message_name} to {receiver}")
+        elif receiver:
+            for msg_name, obj_list in meta_cache_pool.cache_dict[receiver].items():
+                [self._send(receiver, msg_name, obj) for obj in obj_list]
+                del meta_cache_pool.key_mapping[msg_name][receiver]
+            del meta_cache_pool.cache_dict[receiver]
+            self.logger.debug(f"commit messages to {receiver}")
+        elif message_name:
+            for recv, _ in meta_cache_pool.key_mapping[message_name].items():
+                [self._send(recv, message_name, obj) for obj in meta_cache_pool.cache_dict[recv][message_name]]
+                del meta_cache_pool.cache_dict[recv][message_name]
+            del meta_cache_pool.key_mapping[message_name]
+            self.logger.debug(f"commit messages with {message_name} type")
 
     def receive(self, sender, message_name, timeout=-1):
         assert sender in self.other_role_name_set, f"unknown sender : {sender}"

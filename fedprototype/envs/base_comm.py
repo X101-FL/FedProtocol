@@ -2,8 +2,23 @@ from abc import ABC, abstractmethod
 
 
 class BaseComm(ABC):
+
+    def send(self, receiver, message_name, obj, cache=False):
+        if cache:
+            self._send_cache(receiver, message_name, obj)
+        else:
+            self._send(receiver, message_name, obj)
+
     @abstractmethod
-    def send(self, receiver, message_name, obj):
+    def _send(self, receiver, message_name, obj):
+        pass
+
+    @abstractmethod
+    def _send_cache(self, receiver, message_name, obj):
+        pass
+
+    @abstractmethod
+    def commit(self):
         pass
 
     @abstractmethod
