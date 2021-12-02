@@ -1,25 +1,33 @@
 from abc import ABC, abstractmethod
+from collections import defaultdict
 
 
 class BaseComm(ABC):
+    def __init__(self):
+        self._message_buffer = defaultdict(lambda: [])
 
-    def send(self, receiver, message_name, obj, cache=False):
-        if cache:
-            self._send_cache(receiver, message_name, obj)
+    def send(self, receiver, message_name, obj, flush=True):
+        if flush:
+            if receiver in self._message_buffer:
+                _message_package = self._message_buffer.pop(receiver)
+            else:
+                _message_package = []
+            _message_package.append((message_name, obj))
+            self.send_(receiver, _message_package)
         else:
-            self._send(receiver, message_name, obj)
+            self._message_buffer[receiver].append((message_name, obj))
 
     @abstractmethod
-    def _send(self, receiver, message_name, obj):
+    def send_(self, receiver, message_name_obj_list):
         pass
 
-    @abstractmethod
-    def _send_cache(self, receiver, message_name, obj):
-        pass
-
-    @abstractmethod
-    def commit(self):
-        pass
+    def flush(self, receiver=None):
+        if receiver is None:
+            for receiver in list(self._message_buffer.keys()):
+                self.flush(receiver)
+        else:
+            _message_package = self._message_buffer.pop(receiver)
+            self.send_(receiver, _message_package)
 
     @abstractmethod
     def receive(self, sender, message_name, timeout=-1):
