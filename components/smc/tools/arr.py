@@ -1,15 +1,14 @@
 import secrets
+import numpy as np
+import typing as T
+
 from functools import reduce
 from operator import mul
 
 from components.smc.tools.serialize import bytes_to_bit_arr, int_to_bytes
 
 
-def rand_binary_arr(shape):
-    """
-    :param shape: Union[int, Tuple[int, ...]]
-    :return:
-    """
+def rand_binary_arr(shape: T.Union[int, T.Tuple[int, ...]]) -> np.ndarray:
     if isinstance(shape, int):
         size = shape
     else:

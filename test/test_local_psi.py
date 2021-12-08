@@ -5,17 +5,16 @@ import pytest
 
 from jobs.sample.local_psi import ActiveClient, PassiveClient
 from tools.log import LoggerFactory
-from fedprototype.envs import LocalEnv
+from fedprototype.envs.local.local_env import LocalEnv
 
 
 def psi(active_client, passive_client):
     env = LocalEnv()
-    env.add_client(client=active_client) \
-        .add_client(client=passive_client)
+    env.add_client(client=active_client).add_client(client=passive_client)
     env.run()
 
 
-@pytest.mark.parametrize('execution_number', range(2))
+@pytest.mark.parametrize("execution_number", range(5))
 def test_local_psi(execution_number):
     LoggerFactory.LEVEL = logging.INFO
 
@@ -28,8 +27,9 @@ def test_local_psi(execution_number):
 
     # psi(active_client, passive_client)
     env = LocalEnv()
-    env.add_client(client=active_client, words=active_data) \
-        .add_client(client=passive_client, words=passive_data)
+    env.add_client(client=active_client, words=active_data).add_client(
+        client=passive_client, words=passive_data
+    )
     env.run()
 
     active_res = active_client.get_intersection_result()

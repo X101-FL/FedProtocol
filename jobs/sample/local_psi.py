@@ -9,10 +9,14 @@ from tools.log import LoggerFactory
 
 
 class ActiveClient(BaseClient):
-
     def __init__(self, status="PSI"):
         super().__init__("Active")
-        assert status in ["OT", "OTE", "OPRF", "PSI"], f"{status} is not valid, input right status"
+        assert status in [
+            "OT",
+            "OTE",
+            "OPRF",
+            "PSI",
+        ], f"{status} is not valid, input right status"
 
         if status == "OT":
             self.ote_sender = OTESender(128)
@@ -27,11 +31,20 @@ class ActiveClient(BaseClient):
 
     def init(self):
         if self.status in ["OT", "OTE"]:
-            self.set_sub_client(self.ote_sender, role_rename_dict={"OTESender": "Active", "OTEReceiver": "Passive"})
+            self.set_sub_client(
+                self.ote_sender,
+                role_rename_dict={"OTESender": "Active", "OTEReceiver": "Passive"},
+            )
         elif self.status == "OPRF":
-            self.set_sub_client(self.oprf_server, role_rename_dict={"OPRFServer": "Active", "OPRFClient": "Passive"})
+            self.set_sub_client(
+                self.oprf_server,
+                role_rename_dict={"OPRFServer": "Active", "OPRFClient": "Passive"},
+            )
         elif self.status == "PSI":
-            self.set_sub_client(self.psi_server, role_rename_dict={"PSIServer": "Active", "PSIClient": "Passive"})
+            self.set_sub_client(
+                self.psi_server,
+                role_rename_dict={"PSIServer": "Active", "PSIClient": "Passive"},
+            )
             self.psi_server.init()
 
     def run(self, words=None):
@@ -46,8 +59,8 @@ class ActiveClient(BaseClient):
         self.ote_sender.init()
         self.logger.debug(f"OTESender prepare complete")
         for i in range(self.ote_sender.max_count):
-            m0 = (str(i) + '0').encode("utf-8")
-            m1 = (str(i) + '1').encode("utf-8")
+            m0 = (str(i) + "0").encode("utf-8")
+            m1 = (str(i) + "1").encode("utf-8")
             self.ote_sender.run(m0, m1)
 
     def oprf_run(self):
@@ -61,7 +74,9 @@ class ActiveClient(BaseClient):
 
     def psi_run(self, words):
         self.logger.debug(f"Start intersection")
-        self.intersection_result = self.psi_server.run(words)  # intersect stage, res is the intersection
+        self.intersection_result = self.psi_server.run(
+            words
+        )  # intersect stage, res is the intersection
         self.logger.debug(f"Finish intersection")
         self.logger.info(f"result is {self.intersection_result}")
 
@@ -73,14 +88,19 @@ class ActiveClient(BaseClient):
 
 
 class PassiveClient(BaseClient):
-
     def __init__(self, status="PSI"):
         super().__init__("Passive")
-        assert status in ["OT", "OTE", "OPRF", "PSI"], f"{status} is not valid, input right status"
+        assert status in [
+            "OT",
+            "OTE",
+            "OPRF",
+            "PSI",
+        ], f"{status} is not valid, input right status"
 
         self.r = [random.randint(0, 1) for _ in range(1000)]
         if status == "OT":
             self.ote_receiver = OTEReceiver(self.r, 128)
+
         elif status == "OTE":
             self.ote_receiver = OTEReceiver(self.r, 256)
         elif status == "OPRF":
@@ -92,11 +112,20 @@ class PassiveClient(BaseClient):
 
     def init(self):
         if self.status in ["OT", "OTE"]:
-            self.set_sub_client(self.ote_receiver, role_rename_dict={"OTESender": "Active", "OTEReceiver": "Passive"})
+            self.set_sub_client(
+                self.ote_receiver,
+                role_rename_dict={"OTESender": "Active", "OTEReceiver": "Passive"},
+            )
         elif self.status == "OPRF":
-            self.set_sub_client(self.oprf_client, role_rename_dict={"OPRFServer": "Active", "OPRFClient": "Passive"})
+            self.set_sub_client(
+                self.oprf_client,
+                role_rename_dict={"OPRFServer": "Active", "OPRFClient": "Passive"},
+            )
         elif self.status == "PSI":
-            self.set_sub_client(self.psi_client, role_rename_dict={"PSIServer": "Active", "PSIClient": "Passive"})
+            self.set_sub_client(
+                self.psi_client,
+                role_rename_dict={"PSIServer": "Active", "PSIClient": "Passive"},
+            )
             self.psi_client.init()
 
     def run(self, words=None):
@@ -130,7 +159,9 @@ class PassiveClient(BaseClient):
 
     def psi_run(self, words):
         self.logger.debug(f"Start intersection")
-        self.intersection_result = self.psi_client.run(words)  # intersect stage, res is the intersection
+        self.intersection_result = self.psi_client.run(
+            words
+        )  # intersect stage, res is the intersection
         self.logger.debug(f"Finish intersection")
         self.logger.info(f"Results is {self.intersection_result}")
 
@@ -149,9 +180,10 @@ def get_passive_data():
     return {"words": random.sample(range(1, 1000), 100)}
 
 
-if __name__ == '__main__':
-    from fedprototype.envs import LocalEnv
+if __name__ == "__main__":
+    from fedprototype.envs.local.local_env import LocalEnv
 
+    # OT, OTE, OPRF, PSI
     status = "PSI"
     if status == "PSI":
         LoggerFactory.LEVEL = logging.INFO
