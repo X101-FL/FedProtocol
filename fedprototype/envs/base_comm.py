@@ -1,3 +1,5 @@
+import copy
+
 from abc import ABC, abstractmethod
 from collections import defaultdict
 import typing as T
@@ -12,18 +14,19 @@ class BaseComm(ABC):
     def send(
         self, receiver: str, message_name: str, obj: T.Any, flush: bool = True
     ) -> None:
+        obj = copy.deepcopy(obj)
         if flush:
             if receiver in self._message_buffer:
                 _message_package = self._message_buffer.pop(receiver)
             else:
                 _message_package = []
             _message_package.append((message_name, obj))
-            self.send_(receiver, _message_package)
+            self._send(receiver, _message_package)
         else:
             self._message_buffer[receiver].append((message_name, obj))
 
     @abstractmethod
-    def send_(
+    def _send(
         self, receiver: str, message_package: T.List[T.Tuple[str, T.Any]]
     ) -> None:
         pass
@@ -35,7 +38,7 @@ class BaseComm(ABC):
                 self.flush(receiver)
         else:
             _message_package = self._message_buffer.pop(receiver)
-            self.send_(receiver, _message_package)
+            self._send(receiver, _message_package)
 
     @abstractmethod
     def receive(

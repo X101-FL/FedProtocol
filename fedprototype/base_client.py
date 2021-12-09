@@ -7,10 +7,11 @@ from fedprototype.envs.tools import CommRenameWrapper
 
 
 class BaseClient(ABC):
+    comm: BaseComm
+    logger: Logger
+
     def __init__(self, role_name: str):
         self.role_name = role_name
-        self.logger: Logger
-        self.comm: BaseComm
 
     @abstractmethod
     def init(self) -> None:

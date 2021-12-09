@@ -6,7 +6,7 @@ import typing as T
 """
 Written in 2021-12-08 by WangShuai:
 
-When I use typing to declear the type, I meet a problem:
+When I use typing to declare the type, I meet a problem:
 I want to create a empty bytes list with a size, so I initialize it with [None, None, ...]
 But when I want to get the value from the list and arange it to another bytes variable,
 there will be a bug: None can't arange to bytes even if the value I get from the list is a

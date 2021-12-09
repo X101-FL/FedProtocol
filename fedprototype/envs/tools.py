@@ -12,11 +12,11 @@ class CommRenameWrapper(BaseComm):
         self.reversed_dict: T.Dict[str, str] = {v: k for k, v in rename_dict.items()}
         self.other_role_name_set: T.Set[str] = (set(rename_dict.keys()) - {role_name})
 
-    def send_(
+    def _send(
         self, receiver: str, message_name_obj_list: T.List[T.Tuple[str, T.Any]]
     ) -> None:
         role_name = self.rename_dict[receiver]
-        self.comm.send_(role_name, message_name_obj_list)
+        self.comm._send(role_name, message_name_obj_list)
 
     def receive(
         self, sender: str, message_name: str, timeout: T.Optional[int] = None

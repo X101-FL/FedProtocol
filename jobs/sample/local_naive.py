@@ -1,7 +1,9 @@
+import logging
 import time
 import numpy as np
 
 from fedprototype.base_client import BaseClient
+from tools.log import LoggerFactory
 
 
 class ActiveClient(BaseClient):
@@ -92,9 +94,10 @@ def get_passive_run_kwargs(passive_id):
 
 
 if __name__ == "__main__":
-    from fedprototype.envs.local.local_env import LocalEnv
+    from fedprototype.envs import LocalEnv
 
     PASSIVE_NUM = 4
+    LoggerFactory.LEVEL = logging.INFO
 
     env = LocalEnv()
     env.add_client(client=ActiveClient(role_name="Active"), **get_active_run_kwargs())

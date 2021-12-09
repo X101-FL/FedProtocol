@@ -2,12 +2,12 @@ import typing as T
 
 from copy import deepcopy
 from collections import Counter
+from queue import Queue
 from threading import Lock
 
 from tools.log import LoggerFactory
 from fedprototype.envs.base_comm import BaseComm
 from fedprototype.envs.local.message_hub import (
-    DeepCopyQueue,
     MessageHub,
     WatchMessageQueue,
 )
@@ -29,7 +29,7 @@ class LocalComm(BaseComm):
 
         self.logger = LoggerFactory.get_logger(f"{role_name} [{LocalComm.__name__}]")
 
-    def send_(
+    def _send(
         self, receiver: str, message_name_obj_list: T.List[T.Tuple[str, T.Any]]
     ) -> None:
         for message_name, obj in message_name_obj_list:
@@ -108,7 +108,7 @@ class LocalComm(BaseComm):
         ]
 
     def _get_message(
-        self, message_queue: DeepCopyQueue, timeout: T.Optional[int]
+        self, message_queue: Queue, timeout: T.Optional[int]
     ) -> T.Any:
         if message_queue.empty():
             self.logger.debug(
