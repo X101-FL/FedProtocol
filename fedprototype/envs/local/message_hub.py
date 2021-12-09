@@ -1,23 +1,21 @@
 import copy
+import typing as T
+
 from collections import defaultdict
 from queue import Queue
 
 
-class _Queue(Queue):
-
-    def put(self, item, block=True, timeout=None):
-        super().put(copy.deepcopy(item), block, timeout)
-
-
 class WatchMessageQueue:
-
-    def __init__(self, counter):
-        self.queue = _Queue()
+    def __init__(self, counter: T.Dict[T.Tuple[str, str], int]):
+        self.queue = Queue()
         self.counter = counter
 
 
-class MessageHub:
+T_INDEX_DICT = T.DefaultDict[T.Tuple[str, str, str], Queue]
+T_WATCH_INDEX_DICT = T.Dict[str, WatchMessageQueue]
 
+
+class MessageHub:
     def __init__(self):
-        self.index_dict = defaultdict(_Queue)
-        self.watch_index_dict = {}
+        self.index_dict: T_INDEX_DICT = defaultdict(Queue)
+        self.watch_index_dict: T_WATCH_INDEX_DICT = {}
