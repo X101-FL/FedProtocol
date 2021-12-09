@@ -94,7 +94,7 @@ def get_passive_run_kwargs(passive_id):
 
 
 if __name__ == "__main__":
-    from fedprototype.envs import LocalEnv
+    from fedprototype.envs.local.local_env import LocalEnv
 
     PASSIVE_NUM = 4
     LoggerFactory.LEVEL = logging.INFO
