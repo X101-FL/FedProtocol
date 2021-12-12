@@ -2,10 +2,9 @@ import logging
 import random
 
 import pytest
-
+from fedprototype.envs import LocalEnv
 from jobs.sample.local_psi import ActiveClient, PassiveClient
 from tools.log import LoggerFactory
-from fedprototype.envs import LocalEnv
 
 
 @pytest.mark.parametrize("execution_number", range(5))

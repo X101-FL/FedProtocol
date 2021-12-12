@@ -1,8 +1,8 @@
 import random
 import typing as T
 
-from components.smc.psi.cuckoo import position_hash, CuckooHashTable
-from components.smc.psi.oprf import OPRFServer, OPRFClient
+from components.smc.psi.cuckoo import CuckooHashTable, position_hash
+from components.smc.psi.oprf import OPRFClient, OPRFServer
 from fedprototype import BaseClient
 
 

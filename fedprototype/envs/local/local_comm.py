@@ -1,16 +1,12 @@
 import typing as T
-
-from copy import deepcopy
 from collections import Counter
+from copy import deepcopy
 from queue import Queue
 from threading import Lock
 
-from tools.log import LoggerFactory
 from fedprototype.envs.base_comm import BaseComm
-from fedprototype.envs.local.message_hub import (
-    MessageHub,
-    WatchMessageQueue,
-)
+from fedprototype.envs.local.message_hub import MessageHub, WatchMessageQueue
+from tools.log import LoggerFactory
 
 
 class LocalComm(BaseComm):
@@ -107,9 +103,7 @@ class LocalComm(BaseComm):
             if role_name.startswith(role_name_prefix)
         ]
 
-    def _get_message(
-        self, message_queue: Queue, timeout: T.Optional[int]
-    ) -> T.Any:
+    def _get_message(self, message_queue: Queue, timeout: T.Optional[int]) -> T.Any:
         if message_queue.empty():
             self.logger.debug(
                 f"Wanna get message, but queue is empty, release serial lock"

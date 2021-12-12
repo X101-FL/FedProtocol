@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 import torch.nn as nn
-
 from components.algorithms.vertical.models import ActiveModel, PassiveModel
 from encrypt.paillier import PaillierKeypair
 from fedprototype import BaseClient

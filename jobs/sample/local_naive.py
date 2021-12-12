@@ -1,5 +1,6 @@
 import logging
 import time
+
 import numpy as np
 
 from fedprototype import BaseClient

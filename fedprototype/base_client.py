@@ -1,6 +1,6 @@
+import typing as T
 from abc import ABC, abstractmethod
 from logging import Logger
-import typing as T
 
 from fedprototype.envs.base_comm import BaseComm
 from fedprototype.envs.tools import CommRenameWrapper

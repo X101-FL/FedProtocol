@@ -1,8 +1,7 @@
 import copy
-
+import typing as T
 from abc import ABC, abstractmethod
 from collections import defaultdict
-import typing as T
 
 T_MESSAGE_BUFFER = T.DefaultDict[str, T.List[T.Tuple[str, T.Any]]]
 

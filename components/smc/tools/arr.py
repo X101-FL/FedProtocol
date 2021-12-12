@@ -1,9 +1,9 @@
 import secrets
-import numpy as np
 import typing as T
-
 from functools import reduce
 from operator import mul
+
+import numpy as np
 
 from components.smc.tools.serialize import bytes_to_bit_arr, int_to_bytes
 

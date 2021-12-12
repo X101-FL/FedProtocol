@@ -1,9 +1,9 @@
 import logging
 import random
 
-from components.smc.psi.oprf import OPRFServer, OPRFClient
-from components.smc.psi.ote import OTESender, OTEReceiver
-from components.smc.psi.psi import PSIServer, PSIClient
+from components.smc.psi.oprf import OPRFClient, OPRFServer
+from components.smc.psi.ote import OTEReceiver, OTESender
+from components.smc.psi.psi import PSIClient, PSIServer
 from fedprototype import BaseClient
 from tools.log import LoggerFactory
 

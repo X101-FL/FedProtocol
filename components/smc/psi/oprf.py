@@ -1,15 +1,15 @@
-import numpy as np
 import typing as T
 
-from Crypto.Hash import SHAKE256, SHA256
+import numpy as np
+from Crypto.Hash import SHA256, SHAKE256
 
-from components.smc.psi.base import BaseSender, BaseReceiver
-from components.smc.psi.ote import OTESender, OTEReceiver
+from components.smc.psi.base import BaseReceiver, BaseSender
+from components.smc.psi.ote import OTEReceiver, OTESender
 from components.smc.tools.arr import rand_binary_arr
 from components.smc.tools.serialize import (
-    int_to_bytes,
-    bytes_to_bit_arr,
     bit_arr_to_bytes,
+    bytes_to_bit_arr,
+    int_to_bytes,
 )
 from fedprototype import BaseClient
 
