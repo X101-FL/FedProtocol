@@ -5,13 +5,7 @@ import pytest
 
 from jobs.sample.local_psi import ActiveClient, PassiveClient
 from tools.log import LoggerFactory
-from fedprototype.envs.local.local_env import LocalEnv
-
-
-def psi(active_client, passive_client):
-    env = LocalEnv()
-    env.add_client(client=active_client).add_client(client=passive_client)
-    env.run()
+from fedprototype.envs import LocalEnv
 
 
 @pytest.mark.parametrize("execution_number", range(5))
@@ -25,7 +19,6 @@ def test_local_psi(execution_number):
     active_client = ActiveClient(status="PSI")
     passive_client = PassiveClient(status="PSI")
 
-    # psi(active_client, passive_client)
     env = LocalEnv()
     env.add_client(client=active_client, words=active_data).add_client(
         client=passive_client, words=passive_data

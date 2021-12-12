@@ -4,7 +4,7 @@ import random
 from components.smc.psi.oprf import OPRFServer, OPRFClient
 from components.smc.psi.ote import OTESender, OTEReceiver
 from components.smc.psi.psi import PSIServer, PSIClient
-from fedprototype.base_client import BaseClient
+from fedprototype import BaseClient
 from tools.log import LoggerFactory
 
 
@@ -181,7 +181,7 @@ def get_passive_data():
 
 
 if __name__ == "__main__":
-    from fedprototype.envs.local.local_env import LocalEnv
+    from fedprototype.envs import LocalEnv
 
     # OT, OTE, OPRF, PSI
     status = "PSI"
