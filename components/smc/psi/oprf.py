@@ -47,6 +47,7 @@ class OPRFClient(BaseClient):
         )
         m = self._r.shape[0]
         self._t = rand_binary_arr((m, self._codewords))
+
         u = self._t ^ self._r
         if self._codewords == 128:
             self.ot_init(u)
