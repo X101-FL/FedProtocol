@@ -117,6 +117,12 @@ class LocalComm(BaseComm):
             self.logger.debug(f"Wanna get message, queue is not empty, get message")
         return msg
 
+    def clean(self, sender: str, receiver: str, message_name: str) -> None:
+        message_id = self._get_message_id(sender, receiver, message_name)
+        message_queue = self.msg_hub.index_dict[message_id]
+        while not message_queue.empty():
+            message_queue.get()
+
     @staticmethod
     def _get_message_id(
         sender: str, receiver: str, message_name: str

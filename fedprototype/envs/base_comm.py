@@ -65,3 +65,7 @@ class BaseComm(ABC):
     @abstractmethod
     def get_role_name_list(self, role_name_prefix: str) -> T.List[str]:
         pass
+
+    @abstractmethod
+    def clean(self, sender: str, receiver: str, message_name: str) -> None:
+        pass
