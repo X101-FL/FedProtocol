@@ -1,175 +1,258 @@
+import typing as T
+
 import numpy as np
 import torch
-import torch.nn as nn
+from torch import Tensor, nn
+from torch.utils.data.dataloader import DataLoader
+from torch.utils.data.dataset import TensorDataset
+
 from components.algorithms.vertical.models import ActiveModel, PassiveModel
-from encrypt.paillier import PaillierKeypair
+from encrypt.paillier import PaillierKeypair, PaillierPublicKey
 from fedprototype import BaseClient
 
 
 class ActiveTrainClient(BaseClient):
-    def __init__(self, alpha=1e-3, batch_size=16, epoch=100, feature_size=4):
+    encrypt_func: np.ufunc
+    decrypt_func: np.ufunc
+
+    def __init__(
+        self,
+        alpha: float = 1e-3,
+        batch_size: int = 16,
+        epoch: int = 100,
+        in_features: int = 392,
+        out_features: int = 10,
+        encrypt_key_size: int = 1024,
+    ):
         super(ActiveTrainClient, self).__init__("Active")
-        self.encrypt_key_size = 0
+        self.encrypt_key_size = encrypt_key_size
         self.batch_size = batch_size
         self.epoch = epoch
-        self.model = ActiveModel(feature_size)
-        self.loss_func = nn.BCEWithLogitsLoss()
+        self.model = ActiveModel(in_features, out_features)
+        self.loss_func = nn.CrossEntropyLoss()
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=alpha)
 
-    def init(self):
+    def init(self) -> None:
         self._init_encrypt_keys()
 
-    def run(self, features, label):
-        for i in range(self.epoch):
-            batch_loss, batch_acc = self.train_a_epoch(label, features)
+    def run(
+        self,
+        train_features: Tensor,
+        train_labels: Tensor,
+        test_features: Tensor,
+        test_labeles: Tensor,
+    ):
+        train_dataloader, test_dataloader = self._get_dataloader(
+            train_features, train_labels, test_features, test_labeles
+        )
+        for step in range(self.epoch):
+            total_loss = 0.0
+            idx = 0
+            for features, labels in train_dataloader:
+                loss = self._train_one_batch(features, labels)
+                total_loss += loss
+                if idx % 100 == 0:
+                    print(f"[{idx} / {len(train_dataloader)}]   ", f"loss: {loss}")
+                idx += 1
+            acc = self._eval(test_dataloader)
             print(
-                f"epoch: [{i} / {self.epoch}] epoch_loss: {batch_loss} epoch_acc: {batch_acc}"
+                f"[{step + 1}] / [{self.epoch}]]   ",
+                f"loss: {total_loss / len(train_dataloader)}   ",
+                f"acc: {acc}",
             )
         return {"model": self.model}
 
-    def train_a_epoch(self, label, features):
-        # 划分batch并运行
-        data_size = len(features)
-        num_batches_per_epoch = int(data_size / self.batch_size)
-        for batch_num in range(num_batches_per_epoch):
-            si = batch_num * self.batch_size
-            ei = min((batch_num + 1) * self.batch_size, data_size)
-            self.train_a_batch(label[si:ei], features[si:ei])
-        return batch_loss, batch_acc
+    def _eval(self, test_dataloader: DataLoader) -> float:
+        total_acc = 0.0
+        with torch.no_grad():
+            for features, labels in test_dataloader:
+                output = self.model.forward(features)
+                passive_output: Tensor = self.comm.receive(
+                    "Passive", "eval_passive_output"
+                )
+                full_output = output + passive_output
+                acc = (full_output.argmax(dim=1) == labels).float().mean()
+                total_acc += acc
+        return total_acc / len(test_dataloader)
 
-    def train_a_batch(self, batch_label, batch_features):
-        batch_feature = torch.tensor(
-            batch_features, dtype=torch.float, requires_grad=True
+    def _get_dataloader(
+        self,
+        train_features: Tensor,
+        train_labels: Tensor,
+        test_features: Tensor,
+        test_labeles: Tensor,
+    ) -> T.Tuple[DataLoader, DataLoader]:
+        return (
+            DataLoader(
+                TensorDataset(train_features, train_labels),
+                batch_size=self.batch_size,
+                shuffle=False,
+            ),
+            DataLoader(
+                TensorDataset(test_features, test_labeles), batch_size=self.batch_size
+            ),
         )
-        batch_label = torch.tensor(batch_label, dtype=torch.float)
+
+    def _train_one_batch(self, features, labels) -> float:
 
         # STEP2: Compute Θ^A * x_i^A for i ∈ D_A,receive Θ^B x_i^B from B
-        batch_output = self.model.forward(batch_feature)
-        passive_output = self.comm.receive("Passive", "passive_output")
-        self.logger.debug(f"Successfully receive passive_output from Passive")
+        output = self.model.forward(features)
+        passive_output: Tensor = self.comm.receive("Passive", "passive_output")
+        self.logger.info(f"Successfully receive passive_output from Passive")
 
         self.optimizer.zero_grad()
-        passive_output.requires_grad_(requires_grad=True)
+        passive_output.requires_grad_()
         passive_output.grad = None
 
-        # STEP3: Compute Θ_x_i = Θ^A * x_i^A + Θ^B * x_i^B
+        # STEP3: Compute Θ * x_i = Θ^A * x_i^A + Θ^B * x_i^B
         # STEP3: Compute y_i_hat = h_Θ(x_i)
         # STEP4: Compute ΔL/ΔΘ^A and the loss L
-        full_output = batch_output + passive_output
-        batch_loss = self.loss_func(full_output, batch_label)
+        full_output = output + passive_output
+        batch_loss: Tensor = self.loss_func(full_output, labels)
         batch_loss.backward()
-        batch_acc = (
-            (torch.round(torch.sigmoid(full_output)) == batch_label).float().mean()
-        )
+        # batch_acc = (full_output.argmax(dim=1) == labels).float().mean()
 
         # STEP6: Update Θ^A
         self.optimizer.step()
 
         # STEP3: Compute [[(y_i-y_i_hat)]]
-        passive_bias_y_grad = passive_output.grad.numpy()
-        passive_bias_y_grad_encrypted = self.encrypt_func(passive_bias_y_grad)
+        passive_bias_y_grad: np.ndarray = passive_output.grad.numpy()
+
+        passive_bias_y_grad_encrypted: np.ndarray = self.encrypt_func(
+            passive_bias_y_grad
+        )
 
         # STEP3: send [[(y_i-y_i_hat)]] to B for i ∈ D_A
         self.comm.send(
             f"Passive", "passive_bias_y_grad_encrypted", passive_bias_y_grad_encrypted
         )
-        self.logger.debug(
-            f"Successfully send passive_bias_y_grad_encrypted to Passive!"
-        )
+        self.logger.info(f"Successfully send passive_bias_y_grad_encrypted to Passive!")
 
         # STEP4: receive [[ΔL/ΔΘ^B]] + [[R_B]] from B
-        passive_grad_encrypted_noised = self.comm.receive(
+        passive_grad_encrypted_noised: np.ndarray = self.comm.receive(
             "Passive", "passive_grad_encrypted_noised"
         )
-        self.logger.debug(
+        self.logger.info(
             f"Successfully receive passive_grad_encrypted_noised from Passive!"
         )
 
         # STEP5: Decrypt [[ΔL/ΔΘ^B]] + [[R_B]]
-        passive_grad_noised = self.decrypt_func(passive_grad_encrypted_noised)
+        passive_grad_noised: np.ndarray = self.decrypt_func(
+            passive_grad_encrypted_noised
+        )
 
         # STEP5: send ΔL/ΔΘ^B + R_B to B
         self.comm.send(f"Passive", "passive_grad_noised", passive_grad_noised)
-        self.logger.debug(f"Successfully send passive_grad_noised to Passive!")
+        self.logger.info(f"Successfully send passive_grad_noised to Passive!")
 
-    def _init_encrypt_keys(self):
-        self.public_key, self.private_key = PaillierKeypair.generate_keypair(
-            n_length=1024, precision=1e-8
+        return float(batch_loss.item())
+
+    def _init_encrypt_keys(self) -> None:
+        public_key, private_key = PaillierKeypair.generate_keypair(
+            n_length=self.encrypt_key_size, precision=1e-8
         )
-        self.encrypt_func = np.frompyfunc(self.public_key.encrypt, 1, 1)
-        self.decrypt_func = np.frompyfunc(self.private_key.decrypt, 1, 1)
-        self.comm.send("Passive", "public_key", self.public_key)
-        self.logger.debug(f"Successfully send public_key to Passive!")
+        self.encrypt_func = np.frompyfunc(public_key.encrypt, 1, 1)
+        self.decrypt_func = np.frompyfunc(private_key.decrypt, 1, 1)
+        self.comm.send("Passive", "public_key", public_key)
+        self.logger.info(f"Successfully send public_key to Passive!")
 
     def close(self):
         pass
 
 
 class PassiveTrainClient(BaseClient):
-    def __init__(self, alpha=1e-3, batch_size=16, epoch=100, feature_size=4):
+    encrypt_func: np.ufunc
+
+    def __init__(
+        self,
+        alpha: float = 1e-3,
+        batch_size: int = 16,
+        epoch: int = 100,
+        in_features: int = 392,
+        out_features: int = 10,
+        encrypt_key_size: int = 1024,
+    ):
         super(PassiveTrainClient, self).__init__("Passive")
-        self.encrypt_key_size = 0
+        self.encrypt_key_size = encrypt_key_size
         self.batch_size = batch_size
         self.epoch = epoch
-        self.model = PassiveModel(feature_size)
+        self.model = PassiveModel(in_features, out_features)
         self.optimizer = torch.optim.SGD(self.model.parameters(), lr=alpha)
 
-    def init(self):
+    def init(self) -> None:
         self._init_encrypt_keys()
 
-    def run(self, features):
-        for i in range(self.epoch):
-            self.train_a_epoch(features)
+    def run(self, train_features: Tensor, test_features: Tensor):
+        train_dataloader, test_dataloader = self._get_dataloader(
+            train_features, test_features
+        )
+        for _ in range(self.epoch):
+            for features in train_dataloader:
+                features = features[0]
+                # features will be List[Tensor]
+                self._train_one_batch(features)
+            self._eval(test_dataloader)
         return {"model": self.model}
 
-    def train_a_epoch(self, features):
-        # 划分batch并运行
-        data_size = len(features)
-        num_batches_per_epoch = int(data_size / self.batch_size)
-        for batch_num in range(num_batches_per_epoch):
-            si = batch_num * self.batch_size
-            ei = min((batch_num + 1) * self.batch_size, data_size)
-            self.train_a_batch(features[si:ei])
+    def _eval(self, test_dataloader: DataLoader):
+        with torch.no_grad():
+            for features in test_dataloader:
+                features = features[0]
+                output = self.model.forward(features)
+                self.comm.send("Active", "eval_passive_output", output)
 
-    def train_a_batch(self, batch_features):
-        batch_feature = torch.tensor(
-            batch_features, dtype=torch.float, requires_grad=True
+    def _get_dataloader(
+        self, train_features: Tensor, test_features: Tensor
+    ) -> T.Tuple[DataLoader, DataLoader]:
+        return (
+            DataLoader(
+                TensorDataset(train_features), batch_size=self.batch_size, shuffle=False
+            ),
+            DataLoader(
+                TensorDataset(test_features), batch_size=self.batch_size, shuffle=False
+            ),
         )
+
+    def _train_one_batch(self, features) -> None:
 
         # STEP2: Compute Θ^B x_i^B for i ∈ D_B
-        batch_output = self.model.forward(batch_feature)
+        output = self.model.forward(features)
 
         # STEP2: send Θ^B x_i^B to A
-        self.comm.send("Active", "passive_output", batch_output.detach())
-        self.logger.debug("Successfully send passive_output to Active!")
+        self.comm.send("Active", "passive_output", output.detach())
+        self.logger.info("Successfully send passive_output to Active!")
 
         # STEP3: receive [[(y_i-y_i_hat)]] from A
-        passive_bias_y_grad_encrypted = self.comm.receive(
+        passive_bias_y_grad_encrypted: np.ndarray = self.comm.receive(
             "Active", "passive_bias_y_grad_encrypted"
         )
-        self.logger.debug(
+        self.logger.info(
             f"Successfully receive passive_bias_y_grad_encrypted from Active."
         )
 
         # STEP4: Compute [[ΔL/ΔΘ^B]]
-        passive_grad_encrypted = np.dot(passive_bias_y_grad_encrypted.T, batch_features)
+        passive_grad_encrypted: np.ndarray = np.dot(
+            passive_bias_y_grad_encrypted.T, features
+        )
 
         # STEP4: generate random number R_B
         grad_noise = np.random.random(passive_grad_encrypted.shape) * 0.01
-        self.logger.debug(f"Successfully initialize random noise.")
+        self.logger.info(f"Successfully initialize random noise.")
 
         # STEP4: send [[ΔL/ΔΘ^B]] + [[R_B]] to A
-        passive_grad_encrypted_noised = passive_grad_encrypted + self.encrypt_func(
-            grad_noise
+        passive_grad_encrypted_noised: np.ndarray = (
+            passive_grad_encrypted + self.encrypt_func(grad_noise)
         )
         self.comm.send(
             "Active", "passive_grad_encrypted_noised", passive_grad_encrypted_noised
         )
-        self.logger.debug("Successfully send passive_grad_encrypted_noised to Active!")
+        self.logger.info("Successfully send passive_grad_encrypted_noised to Active!")
 
         # STEP5: receive ΔL/ΔΘ^B + R_B from A
-        passive_grad_noised = self.comm.receive("Active", "passive_grad_noised")
-        self.logger.debug(f"Successfully receive passive_grad_noised from Active.")
+        passive_grad_noised: np.ndarray = self.comm.receive(
+            "Active", "passive_grad_noised"
+        )
+        self.logger.info(f"Successfully receive passive_grad_noised from Active.")
 
         # STEP6: Update Θ^B
         self.optimizer.zero_grad()
@@ -178,10 +261,10 @@ class PassiveTrainClient(BaseClient):
         model_w.grad = torch.tensor(passive_grad.astype(float), dtype=torch.float32)
         self.optimizer.step()
 
-    def _init_encrypt_keys(self):
-        self.public_key = self.comm.receive("Active", "public_key")
-        self.encrypt_func = np.frompyfunc(self.public_key.encrypt, 1, 1)
-        self.logger.debug(f"Successfully receive public_key from Active.")
+    def _init_encrypt_keys(self) -> None:
+        public_key: PaillierPublicKey = self.comm.receive("Active", "public_key")
+        self.encrypt_func = np.frompyfunc(public_key.encrypt, 1, 1)
+        self.logger.info(f"Successfully receive public_key from Active.")
 
     def close(self):
         pass
