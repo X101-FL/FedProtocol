@@ -1,3 +1,4 @@
+import time
 import typing as T
 
 import requests
@@ -20,17 +21,32 @@ class TCPComm(BaseComm):
             self._put_message(receiver, message_name, obj)
 
     def _put_message(self, receiver: str, message_name: str, obj: T.Any) -> None:
-        local_url = self.local_url+'/message_sender'
+        local_url = self.local_url + '/message_sender'
         target_url = self.role_name_ip_dict[receiver]
-        r = requests.post(local_url, files=obj, headers={'target_url': target_url, 'message_name': message_name})
+        r = requests.post(local_url, files=obj, headers={'sender': self.role_name,
+                                                         'target_url': target_url,
+                                                         'message_name': message_name})
         self.logger.debug(
             f"Requests now is {r.text}"
         )
 
-    # TODO:Next step
     def receive(self, sender, message_name, timeout=-1):
-        pass
+        if timeout == -1:
+            timeout = 1000
+        local_url = self.local_url + '/get_responder'
+        count = 0
+        r = requests.get(local_url, headers={'sender': self.role_name,
+                                             'message_name': message_name})
+        while r.text == '404':
+            time.sleep(1)
+            r = requests.get(local_url, headers={'sender': self.role_name,
+                                                 'message_name': message_name})
+            count += 1
+            if count > timeout:
+                return '404'
+        return r.content
 
+    # TODO:Next step
     def watch_(self, sender_message_name_tuple_list: T.List[T.Tuple[str, str]], timeout: T.Optional[int] = None) -> \
             T.Generator[T.Tuple[str, str, T.Any], None, None]:
         pass
