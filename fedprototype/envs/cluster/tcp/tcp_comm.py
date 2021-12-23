@@ -4,7 +4,9 @@ import typing as T
 import requests
 
 from fedprototype.envs.base_comm import BaseComm
+from fedprototype.envs.cluster.tcp import tcp_http_server
 from tools.log import LoggerFactory
+from multiprocessing import Process, Pipe, Queue
 
 
 class TCPComm(BaseComm):
@@ -49,6 +51,12 @@ class TCPComm(BaseComm):
     # TODO:Next step
     def watch_(self, sender_message_name_tuple_list: T.List[T.Tuple[str, str]], timeout: T.Optional[int] = None) -> \
             T.Generator[T.Tuple[str, str, T.Any], None, None]:
+        pass
+
+    def run(self, host="127.0.0.1", port=8081):
+        tcp_http_server.run(host, port)
+
+    def clean(self, sender: str, receiver: str, message_name: str) -> None:
         pass
 
     def get_role_name_list(self, role_name_prefix: str) -> T.List[str]:
