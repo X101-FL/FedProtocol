@@ -2,7 +2,6 @@ import hashlib
 import random
 import typing as T
 
-
 """
 Written in 2021-12-08 by WangShuai:
 

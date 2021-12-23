@@ -1,6 +1,5 @@
 import copy
 import typing as T
-
 from collections import defaultdict
 from queue import Queue
 

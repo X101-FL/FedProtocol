@@ -1,21 +1,21 @@
 import random
 import typing as T
 
-from components.smc.psi.cuckoo import position_hash, CuckooHashTable
-from components.smc.psi.oprf import OPRFServer, OPRFClient
-from fedprototype.base_client import BaseClient
+from components.smc.psi.cuckoo import CuckooHashTable, position_hash
+from components.smc.psi.oprf import OPRFClient, OPRFServer
+from fedprototype import BaseClient
 
 
 class PSIServer(BaseClient):
+    oprf_server: OPRFServer
     words: T.List[bytes]
 
     def __init__(self):
         super().__init__("PSIServer")
-
         self.s = 5
-        self.oprf_server = OPRFServer(512)
 
     def init(self):
+        self.oprf_server = OPRFServer(512)
         self.set_sub_client(
             self.oprf_server,
             role_rename_dict={"OPRFServer": "PSIServer", "OPRFClient": "PSIClient"},
@@ -58,10 +58,13 @@ class PSIServer(BaseClient):
         return sorted([int.from_bytes(val, "big") for val in res])
 
     def close(self):
-        pass
+        self.comm.clean("PSIClient", "PSIServer", "word")
+        del self.oprf_server
+        del self.words
 
 
 class PSIClient(BaseClient):
+    oprf_client: OPRFClient
     n: int
     table: T.List[T.Optional[bytes]]
     stash: T.List[T.Optional[bytes]]
@@ -69,7 +72,6 @@ class PSIClient(BaseClient):
 
     def __init__(self):
         super().__init__("PSIClient")
-        self.oprf_client = OPRFClient(512)
 
     def oprf_init(self, words: T.List[bytes]) -> None:
         self.n = int(1.2 * len(words))
@@ -96,6 +98,7 @@ class PSIClient(BaseClient):
         self.oprf_client.complete_init(dummy_table)
 
     def init(self) -> None:
+        self.oprf_client = OPRFClient(512)
         self.set_sub_client(
             self.oprf_client,
             role_rename_dict={"OPRFServer": "PSIServer", "OPRFClient": "PSIClient"},
@@ -145,4 +148,9 @@ class PSIClient(BaseClient):
         return sorted([int.from_bytes(val, "big") for val in res])
 
     def close(self):
-        pass
+        self.comm.clean("PSIServer", "PSIClient", "word")
+        del self.oprf_client
+        del self.n
+        del self.table
+        del self.stash
+        del self.table_hash_index

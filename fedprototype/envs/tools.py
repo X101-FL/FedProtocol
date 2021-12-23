@@ -44,3 +44,8 @@ class CommRenameWrapper(BaseComm):
             for role_name in self.other_role_name_set
             if role_name.startswith(role_name_prefix)
         ]
+
+    def clean(self, sender: str, receiver: str, message_name: str) -> None:
+        sender = self.rename_dict[sender]
+        receiver = self.rename_dict[receiver]
+        self.comm.clean(sender, receiver, message_name)

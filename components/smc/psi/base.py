@@ -1,9 +1,9 @@
 from Crypto.PublicKey import ECC
-from encrypt.shake import ShakeCipher
 
 from components.smc.tools.pack import pack, unpack
-from components.smc.tools.serialize import key_to_bytes, bytes_to_key, point_to_bytes
-from fedprototype.base_client import BaseClient
+from components.smc.tools.serialize import bytes_to_key, key_to_bytes, point_to_bytes
+from encrypt.shake import ShakeCipher
+from fedprototype import BaseClient
 
 
 class BaseSender(BaseClient):
