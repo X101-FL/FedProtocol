@@ -1,17 +1,17 @@
-import numpy as np
 import typing as T
 
-from Crypto.Hash import SHAKE256, SHA256
+import numpy as np
+from Crypto.Hash import SHA256, SHAKE256
 
-from components.smc.psi.base import BaseSender, BaseReceiver
-from components.smc.psi.ote import OTESender, OTEReceiver
+from components.smc.psi.base import BaseReceiver, BaseSender
+from components.smc.psi.ote import OTEReceiver, OTESender
 from components.smc.tools.arr import rand_binary_arr
 from components.smc.tools.serialize import (
-    int_to_bytes,
-    bytes_to_bit_arr,
     bit_arr_to_bytes,
+    bytes_to_bit_arr,
+    int_to_bytes,
 )
-from fedprototype.base_client import BaseClient
+from fedprototype import BaseClient
 
 
 class OPRFClient(BaseClient):
@@ -47,6 +47,7 @@ class OPRFClient(BaseClient):
         )
         m = self._r.shape[0]
         self._t = rand_binary_arr((m, self._codewords))
+
         u = self._t ^ self._r
         if self._codewords == 128:
             self.ot_init(u)

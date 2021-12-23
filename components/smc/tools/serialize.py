@@ -1,6 +1,6 @@
-import numpy as np
 import typing as T
 
+import numpy as np
 from Crypto.PublicKey import ECC
 
 

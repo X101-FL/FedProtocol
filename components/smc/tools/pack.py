@@ -1,6 +1,6 @@
 import typing as T
 
-from components.smc.tools.serialize import int_to_bytes, bytes_to_int
+from components.smc.tools.serialize import bytes_to_int, int_to_bytes
 
 
 def pack(m0: bytes, m1: bytes) -> bytes:

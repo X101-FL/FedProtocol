@@ -1,5 +1,4 @@
 import typing as T
-
 from threading import Lock, Thread
 
 from fedprototype.base_client import BaseClient

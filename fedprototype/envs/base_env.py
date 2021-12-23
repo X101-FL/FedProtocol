@@ -1,5 +1,4 @@
 import typing as T
-
 from abc import ABC, abstractmethod
 
 
