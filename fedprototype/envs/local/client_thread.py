@@ -1,13 +1,10 @@
-import typing as T
+from typing import Dict, Any
+from fedprototype.typing import Client
 from threading import Lock, Thread
-
-from fedprototype.base_client import BaseClient
 
 
 class ClientThread(Thread):
-    def __init__(
-        self, serial_lock: Lock, client: BaseClient, run_kwargs: T.Dict[str, T.Any]
-    ):
+    def __init__(self, serial_lock: Lock, client: Client, run_kwargs: Dict[str, Any]):
         super(ClientThread, self).__init__()
         self.client = client
         self.serial_lock = serial_lock

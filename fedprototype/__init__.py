@@ -1,4 +1,3 @@
-from . import envs as envs
-from .base_client import BaseClient as BaseClient
+from .base_client import BaseClient
 
-__all__ = ["BaseClient", "envs"]
+__all__ = ['BaseClient']

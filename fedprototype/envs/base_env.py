@@ -1,10 +1,10 @@
-import typing as T
 from abc import ABC, abstractmethod
+from fedprototype.typing import Env
 
 
 class BaseEnv(ABC):
     @abstractmethod
-    def add_client(self, *args, **kwargs) -> T.Any:
+    def add_client(self, *args, **kwargs) -> Env:
         pass
 
     @abstractmethod
