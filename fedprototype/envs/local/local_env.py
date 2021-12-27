@@ -1,4 +1,3 @@
-from logging import Logger
 from threading import Lock, Thread
 from typing import Dict, Tuple, Set, List
 
@@ -6,7 +5,7 @@ from fedprototype.envs.base_env import BaseEnv
 from fedprototype.envs.local.client_thread import ClientThread
 from fedprototype.envs.local.local_comm import LocalComm
 from fedprototype.envs.local.message_hub import MessageHub
-from fedprototype.typing import RoleName, Client
+from fedprototype.typing import RoleName, Client, Logger
 from tools.log import LoggerFactory
 
 
@@ -44,16 +43,23 @@ class LocalEnv(BaseEnv):
 
         self.logger.debug(f"All task done!!!")
 
+    def get_logger(self, client: Client) -> Logger:
+        return LoggerFactory.get_logger(name=client.track_name)
+
+    def checkpoint(self, client: Client) -> None:
+        pass
+
+    def load_state(self, client: Client) -> None:
+        pass
+
     def _set_client(self, client: Client) -> None:
-        client.set_logger(self._get_logger(client))
-        client.set_comm(self._get_comm(client))
+        client._env = self
+        client.track_name = client.role_name
+        client.logger = self.get_logger(client)
+        client.comm = self._get_comm(client)
 
     def _get_comm(self, client: Client) -> LocalComm:
         return LocalComm(role_name=client.role_name,
                          other_role_name_set=(self.role_name_set - {client.role_name}),
                          msg_hub=self.msg_hub,
                          serial_lock=self.serial_lock)
-
-    @classmethod
-    def _get_logger(cls, client: Client) -> Logger:
-        return LoggerFactory.get_logger(name=client.role_name)

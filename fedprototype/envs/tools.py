@@ -40,3 +40,8 @@ class CommRenameWrapper(BaseComm):
         if sender is not None:
             sender = self.rename_dict[sender]
         self.comm.clear(sender, message_name)
+
+    def _sub_comm(self, sub_space_name: str) -> Comm:
+        return CommRenameWrapper(self.role_name,
+                                 self.comm._sub_comm(sub_space_name),
+                                 self.rename_dict)

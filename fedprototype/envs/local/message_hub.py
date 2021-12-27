@@ -1,5 +1,5 @@
 from typing import Tuple, Dict, DefaultDict, Generator, Optional, List
-from fedprototype.typing import Sender, Receiver, MessageName, MessageID, MessageObj
+from fedprototype.typing import Sender, Receiver, MessageName, MessageID, MessageObj, SubMessageSpaceName
 
 from collections import defaultdict
 from queue import Queue
@@ -38,15 +38,16 @@ class WatchManager:
 
 class MessageHub:
     def __init__(self):
-        self._index_dict: DefaultDict[MessageID, Queue] = defaultdict(Queue)
-        self._watch_index_dict: Dict[Receiver, WatchManager] = {}
+        self._message_queue_dict: DefaultDict[MessageID, Queue] = defaultdict(Queue)
+        self._watch_queue_dict: Dict[Receiver, WatchManager] = {}
+        self._sub_message_hub_dict: Dict[SubMessageSpaceName, 'MessageHub'] = {}
 
     def lookup_message_queues(self,
                               sender: Sender = None,
                               receiver: Receiver = None,
                               message_name: MessageName = None
                               ) -> Generator[Tuple[MessageID, Queue], None, None]:
-        for message_id, message_queue in self._index_dict.items():
+        for message_id, message_queue in self._message_queue_dict.items():
             (_sender, _receiver, _message_name) = message_id
             if ((sender is None) or (sender == _sender)) \
                     and ((receiver is None) or (receiver == _receiver)) \
@@ -58,13 +59,13 @@ class MessageHub:
                           receiver: Receiver,
                           message_name: MessageName
                           ) -> Queue:
-        return self._index_dict[(sender, receiver, message_name)]
+        return self._message_queue_dict[(sender, receiver, message_name)]
 
     def get_watch_manager(self, receiver: Receiver) -> WatchManager:
-        return self._watch_index_dict[receiver]
+        return self._watch_queue_dict[receiver]
 
     def is_watching(self, receiver: Receiver) -> bool:
-        return receiver in self._watch_index_dict
+        return receiver in self._watch_queue_dict
 
     def register_watch(self,
                        receiver: Receiver,
@@ -77,8 +78,16 @@ class MessageHub:
                 message_obj = message_queue.get()
                 watch_manager.put(sender, message_name, message_obj)
 
-        self._watch_index_dict[receiver] = watch_manager
+        self._watch_queue_dict[receiver] = watch_manager
         return watch_manager
 
     def cancel_watch(self, receiver: Receiver) -> None:
-        del self._watch_index_dict[receiver]
+        del self._watch_queue_dict[receiver]
+
+    def get_sub_message_hub(self, sub_message_space_name: SubMessageSpaceName) -> 'MessageHub':
+        if sub_message_space_name is None:
+            return self
+        else:
+            if sub_message_space_name not in self._sub_message_hub_dict:
+                self._sub_message_hub_dict[sub_message_space_name] = MessageHub()
+            return self._sub_message_hub_dict[sub_message_space_name]

@@ -11,8 +11,10 @@ if TYPE_CHECKING:  # 防止使用类型检查导致的循环导入
 
 RoleName = str
 RoleNamePrefix = str
+TrackName = str
 SubRoleName = str
 UpperRoleName = str
+SubMessageSpaceName = str
 Receiver = str
 Sender = str
 MessageName = str
@@ -24,8 +26,10 @@ Env = typing.TypeVar('Env', bound='BaseEnv')
 
 __all__ = ['RoleName',
            'RoleNamePrefix',
+           'TrackName',
            'SubRoleName',
            'UpperRoleName',
+           'SubMessageSpaceName',
            'Receiver',
            'Sender',
            'MessageName',

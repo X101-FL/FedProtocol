@@ -1,6 +1,7 @@
 import copy
 from typing import DefaultDict, List, Tuple, Optional, Generator
-from fedprototype.typing import MessageName, MessageObj, Receiver, Sender, RoleName, RoleNamePrefix
+from fedprototype.typing import MessageName, MessageObj, Receiver, Sender, \
+    RoleName, RoleNamePrefix, Comm, SubMessageSpaceName
 from abc import ABC, abstractmethod
 from collections import defaultdict
 
@@ -57,6 +58,10 @@ class BaseComm(ABC):
 
     @abstractmethod
     def clear(self, sender: Sender = None, message_name: MessageName = None) -> None:
+        pass
+
+    @abstractmethod
+    def _sub_comm(self, sub_message_space_name: SubMessageSpaceName) -> Comm:
         pass
 
     @abstractmethod

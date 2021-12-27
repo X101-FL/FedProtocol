@@ -2,7 +2,6 @@ import logging
 
 
 class LoggerFactory:
-
     LOG_FORMAT = "%(name)s >> [%(levelname)s] [%(asctime)s] [%(process)s:%(thread)s] - " \
                  "%(filename)s[func:%(funcName)s, line:%(lineno)d]: %(message)s"
     DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
@@ -21,7 +20,8 @@ class LoggerFactory:
     @staticmethod
     def get_logger(name):
         logger = logging.getLogger(name)
-        logger.setLevel(LoggerFactory.LEVEL)
-        stream_handler = LoggerFactory.get_handler()
-        logger.addHandler(stream_handler)
+        if not logger.hasHandlers():
+            logger.setLevel(LoggerFactory.LEVEL)
+            stream_handler = LoggerFactory.get_handler()
+            logger.addHandler(stream_handler)
         return logger
