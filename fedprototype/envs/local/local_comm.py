@@ -4,9 +4,9 @@ from typing import Set, List, Tuple, Optional, Generator, Union
 
 from fedprototype.envs.base_comm import BaseComm
 from fedprototype.envs.local.message_hub import MessageHub, WatchManager
-from fedprototype.typing import RoleName, Receiver, MessageName, MessageObj, Sender, RoleNamePrefix, \
-    SubMessageSpaceName, Comm
-from tools.log import LoggerFactory
+from fedprototype.typing import RoleName, Receiver, MessageName, \
+    MessageObj, Sender, RoleNamePrefix, MessageSpace, Comm
+from fedprototype.tools.log import LoggerFactory
 
 
 class LocalComm(BaseComm):
@@ -67,10 +67,10 @@ class LocalComm(BaseComm):
     def get_role_name_list(self, role_name_prefix: RoleNamePrefix) -> List[RoleName]:
         return [role_name for role_name in self.other_role_name_set if role_name.startswith(role_name_prefix)]
 
-    def _sub_comm(self, sub_message_space_name: SubMessageSpaceName) -> Comm:
+    def _sub_comm(self, message_space: MessageSpace) -> Comm:
         return LocalComm(self.role_name,
                          self.other_role_name_set,
-                         self.msg_hub.get_sub_message_hub(sub_message_space_name),
+                         self.msg_hub.get_sub_message_hub(message_space),
                          self.serial_lock)
 
     def _get_message(self,

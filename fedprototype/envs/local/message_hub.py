@@ -1,5 +1,6 @@
 from typing import Tuple, Dict, DefaultDict, Generator, Optional, List
-from fedprototype.typing import Sender, Receiver, MessageName, MessageID, MessageObj, SubMessageSpaceName
+from fedprototype.typing import Sender, Receiver, MessageName, \
+    MessageID, MessageObj, MessageSpace
 
 from collections import defaultdict
 from queue import Queue
@@ -40,7 +41,7 @@ class MessageHub:
     def __init__(self):
         self._message_queue_dict: DefaultDict[MessageID, Queue] = defaultdict(Queue)
         self._watch_queue_dict: Dict[Receiver, WatchManager] = {}
-        self._sub_message_hub_dict: Dict[SubMessageSpaceName, 'MessageHub'] = {}
+        self._sub_message_hub_dict: Dict[MessageSpace, 'MessageHub'] = {}
 
     def lookup_message_queues(self,
                               sender: Sender = None,
@@ -69,7 +70,8 @@ class MessageHub:
 
     def register_watch(self,
                        receiver: Receiver,
-                       sender_message_name_tuple_list: List[Tuple[Sender, MessageName]]) -> WatchManager:
+                       sender_message_name_tuple_list: List[Tuple[Sender, MessageName]]
+                       ) -> WatchManager:
         sender_msg_counter = dict(Counter(sender_message_name_tuple_list))
         watch_manager = WatchManager(sender_msg_counter)
         for sender, message_name in sender_message_name_tuple_list:  # 把已经接收到的消息移入watch队列
@@ -84,10 +86,10 @@ class MessageHub:
     def cancel_watch(self, receiver: Receiver) -> None:
         del self._watch_queue_dict[receiver]
 
-    def get_sub_message_hub(self, sub_message_space_name: SubMessageSpaceName) -> 'MessageHub':
-        if sub_message_space_name is None:
+    def get_sub_message_hub(self, message_space: MessageSpace) -> 'MessageHub':
+        if message_space is None:
             return self
         else:
-            if sub_message_space_name not in self._sub_message_hub_dict:
-                self._sub_message_hub_dict[sub_message_space_name] = MessageHub()
-            return self._sub_message_hub_dict[sub_message_space_name]
+            if message_space not in self._sub_message_hub_dict:
+                self._sub_message_hub_dict[message_space] = MessageHub()
+            return self._sub_message_hub_dict[message_space]

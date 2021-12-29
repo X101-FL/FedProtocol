@@ -1,6 +1,7 @@
 import typing
 from typing import TYPE_CHECKING
 from logging import Logger
+
 if TYPE_CHECKING:  # 防止使用类型检查导致的循环导入
     # Pycharm会警告下面的导入是无用的，但是不要删除
     # 否则Pycharm的类型补全会无法使用
@@ -11,10 +12,10 @@ if TYPE_CHECKING:  # 防止使用类型检查导致的循环导入
 
 RoleName = str
 RoleNamePrefix = str
-TrackName = str
+TrackPath = str
 SubRoleName = str
 UpperRoleName = str
-SubMessageSpaceName = str
+MessageSpace = str
 Receiver = str
 Sender = str
 MessageName = str
@@ -24,12 +25,16 @@ Client = typing.TypeVar('Client', bound='BaseClient')
 Comm = typing.TypeVar('Comm', bound='BaseComm')
 Env = typing.TypeVar('Env', bound='BaseEnv')
 
+FileDir = str  # 文件夹路径
+FileName = str  # 单纯文件名，不带文件路径
+FilePath = str  # 完整文件路径，文件夹路径 + 文件名
+
 __all__ = ['RoleName',
            'RoleNamePrefix',
-           'TrackName',
+           'TrackPath',
            'SubRoleName',
            'UpperRoleName',
-           'SubMessageSpaceName',
+           'MessageSpace',
            'Receiver',
            'Sender',
            'MessageName',
@@ -38,4 +43,7 @@ __all__ = ['RoleName',
            'Client',
            'Comm',
            'Env',
-           'Logger']
+           'Logger',
+           'FileDir',
+           'FileName',
+           'FilePath']

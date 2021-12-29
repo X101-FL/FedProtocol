@@ -2,7 +2,7 @@ from typing import Dict, List, Tuple, Optional, Generator
 
 from fedprototype.envs.base_comm import BaseComm
 from fedprototype.typing import Comm, RoleName, RoleNamePrefix, Receiver, \
-    Sender, MessageName, MessageObj, SubRoleName, UpperRoleName
+    Sender, MessageName, MessageObj, SubRoleName, UpperRoleName, MessageSpace
 
 
 class CommRenameWrapper(BaseComm):
@@ -41,7 +41,7 @@ class CommRenameWrapper(BaseComm):
             sender = self.rename_dict[sender]
         self.comm.clear(sender, message_name)
 
-    def _sub_comm(self, sub_space_name: str) -> Comm:
+    def _sub_comm(self, message_space: MessageSpace) -> Comm:
         return CommRenameWrapper(self.role_name,
-                                 self.comm._sub_comm(sub_space_name),
+                                 self.comm._sub_comm(message_space),
                                  self.rename_dict)

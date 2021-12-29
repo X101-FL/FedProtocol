@@ -1,16 +1,16 @@
 import copy
 from typing import DefaultDict, List, Tuple, Optional, Generator
-from fedprototype.typing import MessageName, MessageObj, Receiver, Sender, \
-    RoleName, RoleNamePrefix, Comm, SubMessageSpaceName
+from fedprototype.typing import MessageName, MessageObj, Receiver, \
+    Sender, RoleName, RoleNamePrefix, Comm, MessageSpace
 from abc import ABC, abstractmethod
 from collections import defaultdict
 
-MESSAGE_BUFFER = DefaultDict[Receiver, List[Tuple[MessageName, MessageObj]]]
+_MESSAGE_BUFFER = DefaultDict[Receiver, List[Tuple[MessageName, MessageObj]]]
 
 
 class BaseComm(ABC):
     def __init__(self):
-        self._message_buffer: MESSAGE_BUFFER = defaultdict(lambda: [])
+        self._message_buffer: _MESSAGE_BUFFER = defaultdict(lambda: [])
 
     def send(self, receiver: Receiver, message_name: MessageName, message_obj: MessageObj, flush: bool = True) -> None:
         message_obj = copy.deepcopy(message_obj)
@@ -61,7 +61,7 @@ class BaseComm(ABC):
         pass
 
     @abstractmethod
-    def _sub_comm(self, sub_message_space_name: SubMessageSpaceName) -> Comm:
+    def _sub_comm(self, message_space: MessageSpace) -> Comm:
         pass
 
     @abstractmethod
