@@ -2,7 +2,7 @@ from queue import Queue
 from threading import Lock
 from typing import Set, List, Tuple, Optional, Generator, Union
 
-from fedprototype.envs.base_comm import BaseComm
+from fedprototype.base.base_comm import BaseComm
 from fedprototype.envs.local.message_hub import MessageHub, WatchManager
 from fedprototype.typing import RoleName, Receiver, MessageName, \
     MessageObj, Sender, RoleNamePrefix, MessageSpace, Comm

@@ -6,10 +6,11 @@ if TYPE_CHECKING:  # 防止使用类型检查导致的循环导入
     # Pycharm会警告下面的导入是无用的，但是不要删除
     # 否则Pycharm的类型补全会无法使用
     # Pycharm版本需要升级到2021.3
-    from fedprototype import BaseClient
-    from fedprototype.envs.base_comm import BaseComm
-    from fedprototype.envs.base_env import BaseEnv
-    from fedprototype.tools.log import BaseLoggerFactory
+    from fedprototype.base.base_client import BaseClient
+    from fedprototype.base.base_logger_factory import BaseLoggerFactory
+    from fedprototype.base.base_state_saver import BaseStateSaver
+    from fedprototype.base.base_comm import BaseComm
+    from fedprototype.base.base_env import BaseEnv
 
 RoleName = str
 RoleNamePrefix = str
@@ -22,8 +23,10 @@ Sender = str
 MessageName = str
 MessageID = typing.Tuple[Sender, Receiver, MessageName]
 MessageObj = typing.Any
+StateDict = typing.Dict[str, typing.Any]
 Client = typing.TypeVar('Client', bound='BaseClient')
 Comm = typing.TypeVar('Comm', bound='BaseComm')
+StateSaver = typing.TypeVar('StateSaver', bound='BaseStateSaver')
 Env = typing.TypeVar('Env', bound='BaseEnv')
 
 FileDir = str  # 文件夹路径
@@ -42,8 +45,10 @@ __all__ = ['RoleName',
            'MessageName',
            'MessageID',
            'MessageObj',
+           'StateDict',
            'Client',
            'Comm',
+           'StateSaver',
            'Env',
            'Logger',
            'FileDir',

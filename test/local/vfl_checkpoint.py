@@ -1,11 +1,11 @@
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 
 from fedprototype import BaseClient
-from fedprototype.typing import Client
+from fedprototype.typing import Client, StateDict
 
 
 class PsiA(BaseClient):
@@ -110,12 +110,12 @@ class VFLA(BaseClient):
 
         self.logger.info(f"start training ...")
         with self.model_a.init():
-            self.model_a.restore(non_exist='None')
+            self.restore(non_exist='None')
             for epoch in range(5):
                 self.logger.info(f"start epoch<{epoch}>")
                 self.comm.send('VFLB', 'new_epoch', True)
                 self.model_a.train(X_train, Y_train)
-                self.model_a.checkpoint()
+                self.checkpoint()
         self.comm.send('VFLB', 'new_epoch', False)
 
     def test(self, ID_test, X_test, Y_test):
@@ -129,11 +129,17 @@ class VFLA(BaseClient):
 
         self.logger.info(f"start testing ...")
         with self.model_a.init():
-            self.model_a.restore(non_exist='raise')
+            self.restore(non_exist='raise')
             Y_pred = self.model_a.predict(X_test)
 
         acc = (Y_test == Y_pred).mean()
         self.logger.info(f"test acc : {acc}")
+
+    def state_dict(self) -> Optional[StateDict]:
+        return {'model_a': self.model_a}
+
+    def load_state_dict(self, state_dict: StateDict) -> None:
+        self.model_a.load_state_dict(state_dict['model_a'])
 
 
 class VFLB(BaseClient):

@@ -1,6 +1,6 @@
 from typing import Dict, List, Tuple, Optional, Generator
 
-from fedprototype.envs.base_comm import BaseComm
+from fedprototype.base.base_comm import BaseComm
 from fedprototype.typing import Comm, RoleName, RoleNamePrefix, Receiver, \
     Sender, MessageName, MessageObj, SubRoleName, UpperRoleName, MessageSpace
 

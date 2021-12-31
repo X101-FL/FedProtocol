@@ -1,14 +1,6 @@
 import logging
-from abc import abstractmethod
-
+from fedprototype.base.base_logger_factory import BaseLoggerFactory
 from fedprototype.typing import Logger
-
-
-class BaseLoggerFactory:
-    @staticmethod
-    @abstractmethod
-    def get_logger(name) -> Logger:
-        pass
 
 
 class LocalLoggerFactory(BaseLoggerFactory):

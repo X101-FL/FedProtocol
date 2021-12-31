@@ -1,9 +1,9 @@
 from abc import ABC
 from typing import Any, Optional, Dict, Union
 
-from fedprototype.envs.tools import CommRenameWrapper
+from fedprototype.tools.comm_wrapper import CommRenameWrapper
 from fedprototype.typing import Comm, Logger, RoleName, SubRoleName, UpperRoleName, \
-    Client, TrackPath, Env, MessageSpace, FilePath
+    Client, TrackPath, Env, MessageSpace, FilePath, StateDict
 
 
 class BaseClient(ABC):
@@ -36,7 +36,7 @@ class BaseClient(ABC):
 
     def checkpoint(self,
                    file_path: Optional[FilePath] = None,
-                   state_dict: Optional[Dict[str, Any]] = None
+                   state_dict: Optional[StateDict] = None
                    ) -> None:
         if state_dict is None:
             state_dict = self.state_dict()
@@ -47,16 +47,16 @@ class BaseClient(ABC):
             file_path = f'{self.track_path}.pkl'
 
         self.logger.debug(f"save state dict to : {file_path}")
-        self.env.save(state_dict, file_path)
+        self.env.state_saver.save(file_path, state_dict)
 
     def restore(self,
                 file_path: Optional[FilePath] = None,
-                non_exist: Union[str, Dict[str, Any]] = 'raise'
+                non_exist: Union[str, StateDict] = 'raise'
                 ) -> None:
         if file_path is None:
             file_path = f'{self.track_path}.pkl'
         self.logger.debug(f"load state dict from : {file_path}")
-        state_dict = self.env.load(file_path, non_exist=non_exist)
+        state_dict = self.env.state_saver.load(file_path, non_exist=non_exist)
 
         if state_dict is None:
             self.logger.debug(f"no state_dict to load")
@@ -64,11 +64,11 @@ class BaseClient(ABC):
 
         self.load_state_dict(state_dict)
 
-    def state_dict(self) -> Optional[Dict[str, Any]]:
+    def state_dict(self) -> Optional[StateDict]:
         return None
 
-    def load_state_dict(self, state_dict: Optional[Dict[str, Any]]) -> None:
-        pass
+    def load_state_dict(self, state_dict: StateDict) -> None:
+        return
 
     def _set_env(self, env) -> Client:
         self.env = env
@@ -102,9 +102,10 @@ class BaseClient(ABC):
         self.logger = self.env.logger_factory.get_logger(self.track_path)
         return self
 
-    def _set_comm_logger(self, comm: Comm) -> Comm:
+    def _set_comm_logger(self, comm: Optional[Comm] = None) -> None:
+        if comm is None:
+            comm = self.comm
         comm.logger = self.env.logger_factory.get_logger(f"{self.track_path} [{comm.__class__.__name__}]")
-        return comm
 
     def __enter__(self) -> Client:
         return self

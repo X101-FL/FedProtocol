@@ -1,14 +1,13 @@
-import os
 from threading import Lock, Thread
-from typing import Dict, Tuple, Set, List, Any, Union
+from typing import Dict, Tuple, Set, List
 
-from fedprototype.envs.base_env import BaseEnv
+from fedprototype.base.base_env import BaseEnv
+from fedprototype.typing import RoleName, Client, FileDir
 from fedprototype.envs.local.client_thread import ClientThread
 from fedprototype.envs.local.local_comm import LocalComm
 from fedprototype.envs.local.message_hub import MessageHub
-from fedprototype.tools.io import save_pkl, load_pkl
+from fedprototype.tools.state_saver import LocalStateSaver
 from fedprototype.tools.log import LocalLoggerFactory
-from fedprototype.typing import RoleName, Client, FilePath
 
 
 class LocalEnv(BaseEnv):
@@ -19,7 +18,7 @@ class LocalEnv(BaseEnv):
         self.role_name_set: Set[RoleName] = set()
         self.msg_hub: MessageHub = MessageHub()
 
-        self.set_logger_factory(LocalLoggerFactory)
+        self._default_setting()
 
     def add_client(self, client: Client, entry_func: str = 'run', **entry_kwargs) -> "LocalEnv":
         self.client_info_dict[client.role_name] = (client, entry_func, entry_kwargs)
@@ -46,19 +45,21 @@ class LocalEnv(BaseEnv):
 
         self.logger.debug(f"All task done!!!")
 
-    def save(self, obj: Any, file_path: FilePath) -> None:
-        file_path = os.path.join(self.checkpoint_home, file_path)
-        save_pkl(obj, file_path)
+    def set_checkpoint_home(self, home_dir: FileDir) -> "LocalEnv":
+        assert isinstance(self.state_saver, LocalStateSaver), \
+            f"set_checkpoint_home is not supported by {self.state_saver.__class__.__name__}"
+        self.state_saver.set_home_dir(home_dir)
+        return self
 
-    def load(self, file_path: FilePath, non_exist: Union[str, Any] = 'raise') -> Any:
-        file_path = os.path.join(self.checkpoint_home, file_path)
-        return load_pkl(file_path, non_exist)
+    def _default_setting(self):
+        self.set_logger_factory(LocalLoggerFactory)
+        self.set_state_saver(LocalStateSaver())
 
     def _set_client(self, client: Client) -> None:
         client.env = self
         client.track_path = client.role_name
         client.comm = self._get_comm(client)
-        client._set_comm_logger(client.comm)
+        client._set_comm_logger()
         client._set_client_logger()
 
     def _get_comm(self, client: Client) -> LocalComm:
