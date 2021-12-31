@@ -6,12 +6,16 @@ from collections import defaultdict
 T_MESSAGE_BUFFER = T.DefaultDict[str, T.List[T.Tuple[str, T.Any]]]
 
 
+def create_new_list():
+    return list()
+
+
 class BaseComm(ABC):
     def __init__(self):
-        self._message_buffer: T_MESSAGE_BUFFER = defaultdict(lambda: [])
+        self._message_buffer: T_MESSAGE_BUFFER = defaultdict(create_new_list)
 
     def send(
-        self, receiver: str, message_name: str, obj: T.Any, flush: bool = True
+            self, receiver: str, message_name: str, obj: T.Any, flush: bool = True
     ) -> None:
         obj = copy.deepcopy(obj)
         if flush:
@@ -26,7 +30,7 @@ class BaseComm(ABC):
 
     @abstractmethod
     def _send(
-        self, receiver: str, message_package: T.List[T.Tuple[str, T.Any]]
+            self, receiver: str, message_package: T.List[T.Tuple[str, T.Any]]
     ) -> None:
         pass
 
@@ -41,12 +45,12 @@ class BaseComm(ABC):
 
     @abstractmethod
     def receive(
-        self, sender: str, message_name: str, timeout: T.Optional[int] = None
+            self, sender: str, message_name: str, timeout: T.Optional[int] = None
     ) -> T.Any:
         pass
 
     def watch(
-        self, sender_prefix: str, message_name: str, timeout: T.Optional[int] = None
+            self, sender_prefix: str, message_name: str, timeout: T.Optional[int] = None
     ) -> T.Generator[T.Tuple[str, str, T.Any], None, None]:
         sender_list = self.get_role_name_list(sender_prefix)
         sender_message_name_tuple_list = [
@@ -56,9 +60,9 @@ class BaseComm(ABC):
 
     @abstractmethod
     def watch_(
-        self,
-        sender_message_name_tuple_list: T.List[T.Tuple[str, str]],
-        timeout: T.Optional[int] = None,
+            self,
+            sender_message_name_tuple_list: T.List[T.Tuple[str, str]],
+            timeout: T.Optional[int] = None,
     ) -> T.Generator[T.Tuple[str, str, T.Any], None, None]:
         pass
 

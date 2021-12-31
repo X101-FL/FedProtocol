@@ -1,0 +1,7 @@
+sklearn~=0.0
+scikit-learn~=0.23.2
+numpy~=1.19.5
+requests~=2.25.0
+fastapi~=0.70.0
+pydantic~=1.8.2
+starlette~=0.16.0
