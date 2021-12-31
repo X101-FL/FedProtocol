@@ -27,13 +27,14 @@ class CommRenameWrapper(BaseComm):
 
     def watch_(self,
                sender_message_name_tuple_list: List[Tuple[Sender, MessageName]],
-               timeout: Optional[int] = None) -> Generator[Tuple[Sender, MessageName, MessageObj], None, None]:
+               timeout: Optional[int] = None
+               ) -> Generator[Tuple[Sender, MessageName, MessageObj], None, None]:
         sender_message_name_tuple_list = [(self.rename_dict[role], message) for role, message in
                                           sender_message_name_tuple_list]
         for sender, message_name, message_obj in self.comm.watch_(sender_message_name_tuple_list, timeout):
             yield self.reversed_dict[sender], message_name, message_obj
 
-    def get_role_name_list(self, role_name_prefix: RoleNamePrefix) -> List[RoleName]:
+    def list_role_name(self, role_name_prefix: RoleNamePrefix) -> List[RoleName]:
         return [role_name for role_name in self.other_role_name_set if role_name.startswith(role_name_prefix)]
 
     def clear(self, sender: Sender = None, message_name: MessageName = None) -> None:

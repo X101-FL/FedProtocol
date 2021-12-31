@@ -1,7 +1,7 @@
 import copy
 from typing import DefaultDict, List, Tuple, Optional, Generator
 from fedprototype.typing import MessageName, MessageObj, Receiver, \
-    Sender, RoleName, RoleNamePrefix, Comm, MessageSpace
+    Sender, RoleName, RoleNamePrefix, Comm, MessageSpace, Logger
 from abc import ABC, abstractmethod
 from collections import defaultdict
 
@@ -11,6 +11,7 @@ _MESSAGE_BUFFER = DefaultDict[Receiver, List[Tuple[MessageName, MessageObj]]]
 class BaseComm(ABC):
     def __init__(self):
         self._message_buffer: _MESSAGE_BUFFER = defaultdict(lambda: [])
+        self.logger: Logger = None
 
     def send(self, receiver: Receiver, message_name: MessageName, message_obj: MessageObj, flush: bool = True) -> None:
         message_obj = copy.deepcopy(message_obj)
@@ -41,7 +42,7 @@ class BaseComm(ABC):
               message_name: MessageName,
               timeout: Optional[int] = None
               ) -> Generator[Tuple[Sender, MessageName, MessageObj], None, None]:
-        sender_list = self.get_role_name_list(sender_prefix)
+        sender_list = self.list_role_name(sender_prefix)
         sender_message_name_tuple_list = [(sender, message_name) for sender in sender_list]
         return self.watch_(sender_message_name_tuple_list, timeout)
 
@@ -53,7 +54,7 @@ class BaseComm(ABC):
         pass
 
     @abstractmethod
-    def get_role_name_list(self, role_name_prefix: RoleNamePrefix) -> List[RoleName]:
+    def list_role_name(self, role_name_prefix: RoleNamePrefix) -> List[RoleName]:
         pass
 
     @abstractmethod

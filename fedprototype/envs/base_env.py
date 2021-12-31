@@ -1,19 +1,21 @@
 from abc import ABC, abstractmethod
 from typing import Any, Union
-from fedprototype.typing import Env, Client, Logger, FilePath
+
+from fedprototype.typing import Env, Logger, FilePath, FileDir, LoggerFactory
 
 
 class BaseEnv(ABC):
+    def __init__(self):
+        self.checkpoint_home: FileDir = ''
+        self.logger_factory: LoggerFactory = None
+        self.logger: Logger = None
+
     @abstractmethod
     def add_client(self, *args, **kwargs) -> Env:
         pass
 
     @abstractmethod
     def run(self, *args, **kwargs) -> None:
-        pass
-
-    @abstractmethod
-    def get_logger(self, client: Client) -> Logger:
         pass
 
     @abstractmethod
@@ -33,3 +35,12 @@ class BaseEnv(ABC):
         :return: pyton对象
         """
         pass
+
+    def set_checkpoint_home(self, checkpoint_home: FileDir) -> Env:
+        self.checkpoint_home = checkpoint_home
+        return self
+
+    def set_logger_factory(self, logger_factory: LoggerFactory) -> Env:
+        self.logger_factory = logger_factory
+        self.logger = logger_factory.get_logger(self.__class__.__name__)
+        return self

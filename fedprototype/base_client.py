@@ -30,9 +30,9 @@ class BaseClient(ABC):
                        role_rename_dict: Optional[Dict[SubRoleName, UpperRoleName]] = None) -> None:
         sub_client \
             ._set_env(self.env) \
-            ._set_track_name(self) \
-            ._set_logger() \
-            ._set_comm(self, message_space, role_rename_dict)
+            ._set_track_path(self) \
+            ._set_comm(self, message_space, role_rename_dict) \
+            ._set_client_logger()
 
     def checkpoint(self,
                    file_path: Optional[FilePath] = None,
@@ -74,17 +74,13 @@ class BaseClient(ABC):
         self.env = env
         return self
 
-    def _set_track_name(self, upper_client: Client) -> Client:
+    def _set_track_path(self, upper_client: Client) -> Client:
         for _attr_name, _attr_value in upper_client.__dict__.items():
             if isinstance(_attr_value, BaseClient) and (_attr_value is self):
                 self.track_path = f"{upper_client.track_path}/{_attr_name}.{self.role_name}"
                 break
         else:
             raise Exception(f"can't find track_name of {self.role_name}")
-        return self
-
-    def _set_logger(self) -> Client:
-        self.logger = self.env.get_logger(self)
         return self
 
     def _set_comm(self,
@@ -95,10 +91,20 @@ class BaseClient(ABC):
         comm = upper_client.comm
         if message_space:
             comm = comm._sub_comm(message_space)
+            self._set_comm_logger(comm)
         if role_rename_dict:
             comm = CommRenameWrapper(self.role_name, comm, role_rename_dict)
+            self._set_comm_logger(comm)
         self.comm = comm
         return self
+
+    def _set_client_logger(self) -> Client:
+        self.logger = self.env.logger_factory.get_logger(self.track_path)
+        return self
+
+    def _set_comm_logger(self, comm: Comm) -> Comm:
+        comm.logger = self.env.logger_factory.get_logger(f"{self.track_path} [{comm.__class__.__name__}]")
+        return comm
 
     def __enter__(self) -> Client:
         return self

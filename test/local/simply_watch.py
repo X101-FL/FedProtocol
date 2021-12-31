@@ -7,7 +7,7 @@ class ClientA(BaseClient):
         super().__init__(role_name='PartA')
 
     def run(self):
-        for _receiver in self.comm.get_role_name_list('PartB.'):
+        for _receiver in self.comm.list_role_name('PartB.'):
             self.logger.info(f"send to {_receiver}")
             self.comm.send(_receiver, 'test_a_to_b', f'hello {_receiver}')
 

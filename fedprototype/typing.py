@@ -9,6 +9,7 @@ if TYPE_CHECKING:  # 防止使用类型检查导致的循环导入
     from fedprototype import BaseClient
     from fedprototype.envs.base_comm import BaseComm
     from fedprototype.envs.base_env import BaseEnv
+    from fedprototype.tools.log import BaseLoggerFactory
 
 RoleName = str
 RoleNamePrefix = str
@@ -29,6 +30,7 @@ FileDir = str  # 文件夹路径
 FileName = str  # 单纯文件名，不带文件路径
 FilePath = str  # 完整文件路径，文件夹路径 + 文件名
 
+LoggerFactory = typing.TypeVar('LoggerFactory', bound='BaseLoggerFactory')
 __all__ = ['RoleName',
            'RoleNamePrefix',
            'TrackPath',
@@ -46,4 +48,5 @@ __all__ = ['RoleName',
            'Logger',
            'FileDir',
            'FileName',
-           'FilePath']
+           'FilePath',
+           'LoggerFactory']

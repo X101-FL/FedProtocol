@@ -6,7 +6,6 @@ from fedprototype.envs.base_comm import BaseComm
 from fedprototype.envs.local.message_hub import MessageHub, WatchManager
 from fedprototype.typing import RoleName, Receiver, MessageName, \
     MessageObj, Sender, RoleNamePrefix, MessageSpace, Comm
-from fedprototype.tools.log import LoggerFactory
 
 
 class LocalComm(BaseComm):
@@ -21,8 +20,6 @@ class LocalComm(BaseComm):
         self.msg_hub = msg_hub
         self.serial_lock = serial_lock
 
-        self.logger = LoggerFactory.get_logger(f"{role_name} [{LocalComm.__name__}]")
-
     def _send(self, receiver: Receiver, message_package: List[Tuple[MessageName, MessageObj]]) -> None:
         for message_name, message_obj in message_package:
             self._put_message(receiver, message_name, message_obj)
@@ -32,17 +29,17 @@ class LocalComm(BaseComm):
 
         if not self.msg_hub.is_watching(receiver):
             self.msg_hub.get_message_queue(self.role_name, receiver, message_name).put(message_obj)
-            self.logger.debug(f"{receiver} now is not watching, put data into index_dict")
+            self.logger.debug(f"{receiver} now is not watching, put data into message queue")
         else:
             watch_manager = self.msg_hub.get_watch_manager(receiver)
             if not watch_manager.is_desired_message(self.role_name, message_name):
                 self.msg_hub.get_message_queue(self.role_name, receiver, message_name).put(message_obj)
                 self.logger.debug(f"({self.role_name}, {message_name}) is not watched by {receiver}, "
-                                  f"put data into index_dict")
+                                  f"put data into message queue")
             else:
                 watch_manager.put(self.role_name, message_name, message_obj)
                 self.logger.debug(f"({self.role_name}, {message_name}) is watched by {receiver}, "
-                                  f"put data into watch_index_dict")
+                                  f"put data into watch manager")
 
     def receive(self, sender: Sender, message_name: MessageName, timeout: Optional[int] = None) -> MessageObj:
         assert sender in self.other_role_name_set, f"Error: unknown sender: {sender}"
@@ -64,7 +61,7 @@ class LocalComm(BaseComm):
             while not message_queue.empty():
                 message_queue.get()
 
-    def get_role_name_list(self, role_name_prefix: RoleNamePrefix) -> List[RoleName]:
+    def list_role_name(self, role_name_prefix: RoleNamePrefix) -> List[RoleName]:
         return [role_name for role_name in self.other_role_name_set if role_name.startswith(role_name_prefix)]
 
     def _sub_comm(self, message_space: MessageSpace) -> Comm:
