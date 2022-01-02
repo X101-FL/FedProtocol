@@ -20,7 +20,7 @@ class LocalLoggerFactory(BaseLoggerFactory):
         return handler
 
     @staticmethod
-    def get_logger(name) -> Logger:
+    def get_logger(name: str) -> Logger:
         logger = logging.getLogger(name)
         if not logger.hasHandlers():
             logger.setLevel(LocalLoggerFactory.LEVEL)

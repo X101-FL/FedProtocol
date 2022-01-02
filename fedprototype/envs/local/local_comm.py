@@ -56,7 +56,7 @@ class LocalComm(BaseComm):
             yield self._get_message(watch_manager, timeout)
         self.msg_hub.cancel_watch(self.role_name)
 
-    def clear(self, sender: Sender = None, message_name: MessageName = None) -> None:
+    def clear(self, sender: Optional[Sender] = None, message_name: Optional[MessageName] = None) -> None:
         for _, message_queue in self.msg_hub.lookup_message_queues(sender, self.role_name, message_name):
             while not message_queue.empty():
                 message_queue.get()

@@ -44,9 +44,9 @@ class MessageHub:
         self._sub_message_hub_dict: Dict[MessageSpace, 'MessageHub'] = {}
 
     def lookup_message_queues(self,
-                              sender: Sender = None,
-                              receiver: Receiver = None,
-                              message_name: MessageName = None
+                              sender: Optional[Sender] = None,
+                              receiver: Optional[Receiver] = None,
+                              message_name: Optional[MessageName] = None
                               ) -> Generator[Tuple[MessageID, Queue], None, None]:
         for message_id, message_queue in self._message_queue_dict.items():
             (_sender, _receiver, _message_name) = message_id
@@ -86,7 +86,7 @@ class MessageHub:
     def cancel_watch(self, receiver: Receiver) -> None:
         del self._watch_queue_dict[receiver]
 
-    def get_sub_message_hub(self, message_space: MessageSpace) -> 'MessageHub':
+    def get_sub_message_hub(self, message_space: Optional[MessageSpace]) -> 'MessageHub':
         if message_space is None:
             return self
         else:

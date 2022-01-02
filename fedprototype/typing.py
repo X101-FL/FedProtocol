@@ -7,10 +7,10 @@ if TYPE_CHECKING:  # 防止使用类型检查导致的循环导入
     # 否则Pycharm的类型补全会无法使用
     # Pycharm版本需要升级到2021.3
     from fedprototype.base.base_client import BaseClient
-    from fedprototype.base.base_logger_factory import BaseLoggerFactory
-    from fedprototype.base.base_state_saver import BaseStateSaver
     from fedprototype.base.base_comm import BaseComm
     from fedprototype.base.base_env import BaseEnv
+    from fedprototype.base.base_state_saver import BaseStateSaver
+    from fedprototype.base.base_logger_factory import BaseLoggerFactory
 
 RoleName = str
 RoleNamePrefix = str
@@ -24,16 +24,18 @@ MessageName = str
 MessageID = typing.Tuple[Sender, Receiver, MessageName]
 MessageObj = typing.Any
 StateDict = typing.Dict[str, typing.Any]
-Client = typing.TypeVar('Client', bound='BaseClient')
-Comm = typing.TypeVar('Comm', bound='BaseComm')
-StateSaver = typing.TypeVar('StateSaver', bound='BaseStateSaver')
-Env = typing.TypeVar('Env', bound='BaseEnv')
+Client = 'BaseClient'
+Comm = 'BaseComm'
+Env = 'BaseEnv'
+
+StateKey = str
+StateSaver = 'BaseStateSaver'
+LoggerFactory = 'BaseLoggerFactory'
 
 FileDir = str  # 文件夹路径
 FileName = str  # 单纯文件名，不带文件路径
 FilePath = str  # 完整文件路径，文件夹路径 + 文件名
 
-LoggerFactory = typing.TypeVar('LoggerFactory', bound='BaseLoggerFactory')
 __all__ = ['RoleName',
            'RoleNamePrefix',
            'TrackPath',
@@ -48,10 +50,11 @@ __all__ = ['RoleName',
            'StateDict',
            'Client',
            'Comm',
-           'StateSaver',
            'Env',
+           'StateKey',
+           'StateSaver',
+           'LoggerFactory',
            'Logger',
            'FileDir',
            'FileName',
-           'FilePath',
-           'LoggerFactory']
+           'FilePath']

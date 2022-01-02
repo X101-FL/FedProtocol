@@ -10,7 +10,7 @@ class CommRenameWrapper(BaseComm):
                  role_name: SubRoleName,
                  comm: Comm,
                  rename_dict: Dict[SubRoleName, UpperRoleName]):
-        super(CommRenameWrapper, self).__init__()
+        super().__init__()
         self.role_name = role_name
         self.comm = comm
         self.rename_dict = rename_dict
@@ -37,7 +37,7 @@ class CommRenameWrapper(BaseComm):
     def list_role_name(self, role_name_prefix: RoleNamePrefix) -> List[RoleName]:
         return [role_name for role_name in self.other_role_name_set if role_name.startswith(role_name_prefix)]
 
-    def clear(self, sender: Sender = None, message_name: MessageName = None) -> None:
+    def clear(self, sender: Optional[Sender] = None, message_name: Optional[MessageName] = None) -> None:
         if sender is not None:
             sender = self.rename_dict[sender]
         self.comm.clear(sender, message_name)

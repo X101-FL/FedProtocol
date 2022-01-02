@@ -3,17 +3,17 @@ from typing import Any, Optional, Dict, Union
 
 from fedprototype.tools.comm_wrapper import CommRenameWrapper
 from fedprototype.typing import Comm, Logger, RoleName, SubRoleName, UpperRoleName, \
-    Client, TrackPath, Env, MessageSpace, FilePath, StateDict
+    Client, TrackPath, Env, MessageSpace, StateKey, StateDict
 
 
 class BaseClient(ABC):
 
     def __init__(self, role_name: RoleName):
-        self.role_name = role_name
-        self.track_path: TrackPath = None
-        self.comm: Comm = None
-        self.logger: Logger = None
-        self.env: Env = None
+        self.role_name: RoleName = role_name
+        self.track_path: Optional[TrackPath] = None
+        self.comm: Optional[Comm] = None
+        self.logger: Optional[Logger] = None
+        self.env: Optional[Env] = None
 
     def init(self) -> Client:
         return self
@@ -26,7 +26,7 @@ class BaseClient(ABC):
 
     def set_sub_client(self,
                        sub_client: Client,
-                       message_space: MessageSpace = None,
+                       message_space: Optional[MessageSpace] = None,
                        role_rename_dict: Optional[Dict[SubRoleName, UpperRoleName]] = None) -> None:
         sub_client \
             ._set_env(self.env) \
@@ -35,7 +35,7 @@ class BaseClient(ABC):
             ._set_client_logger()
 
     def checkpoint(self,
-                   file_path: Optional[FilePath] = None,
+                   state_key: Optional[StateKey] = None,
                    state_dict: Optional[StateDict] = None
                    ) -> None:
         if state_dict is None:
@@ -43,20 +43,20 @@ class BaseClient(ABC):
         if state_dict is None:
             return
 
-        if file_path is None:
-            file_path = f'{self.track_path}.pkl'
+        if state_key is None:
+            state_key = self.track_path
 
-        self.logger.debug(f"save state dict to : {file_path}")
-        self.env.state_saver.save(file_path, state_dict)
+        self.logger.debug(f"save state dict to : {state_key}")
+        self.env.state_saver.save(state_key, state_dict)
 
     def restore(self,
-                file_path: Optional[FilePath] = None,
+                state_key: Optional[StateKey] = None,
                 non_exist: Union[str, StateDict] = 'raise'
                 ) -> None:
-        if file_path is None:
-            file_path = f'{self.track_path}.pkl'
-        self.logger.debug(f"load state dict from : {file_path}")
-        state_dict = self.env.state_saver.load(file_path, non_exist=non_exist)
+        if state_key is None:
+            state_key = self.track_path
+        self.logger.debug(f"load state dict of : {state_key}")
+        state_dict = self.env.state_saver.load(state_key, non_exist=non_exist)
 
         if state_dict is None:
             self.logger.debug(f"no state_dict to load")
@@ -85,12 +85,12 @@ class BaseClient(ABC):
 
     def _set_comm(self,
                   upper_client: Client,
-                  message_space: MessageSpace = None,
+                  message_space: Optional[MessageSpace] = None,
                   role_rename_dict: Optional[Dict[SubRoleName, UpperRoleName]] = None
                   ) -> Client:
         comm = upper_client.comm
         if message_space:
-            comm = comm._sub_comm(message_space)
+            comm = comm._sub_comm(message_space)  # 这里调用了私有函数，这个函数不应该声明为公有函数（对用户隐藏），IDE可能会报警告，但是没关系
             self._set_comm_logger(comm)
         if role_rename_dict:
             comm = CommRenameWrapper(self.role_name, comm, role_rename_dict)

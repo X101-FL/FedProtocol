@@ -1,13 +1,13 @@
 from abc import ABC, abstractmethod
-
+from typing import Optional
 from fedprototype.typing import Env, Logger, LoggerFactory, StateSaver
 
 
 class BaseEnv(ABC):
     def __init__(self):
-        self.state_saver: StateSaver = None
-        self.logger_factory: LoggerFactory = None
-        self.logger: Logger = None
+        self.state_saver: Optional[StateSaver] = None
+        self.logger_factory: Optional[LoggerFactory] = None
+        self.logger: Optional[Logger] = None
 
     @abstractmethod
     def add_client(self, *args, **kwargs) -> Env:

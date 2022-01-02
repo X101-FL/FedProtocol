@@ -59,7 +59,7 @@ class LocalEnv(BaseEnv):
         client.env = self
         client.track_path = client.role_name
         client.comm = self._get_comm(client)
-        client._set_comm_logger()
+        client._set_comm_logger()  # 这里调用了私有函数，因为这个函数不应暴露给用户
         client._set_client_logger()
 
     def _get_comm(self, client: Client) -> LocalComm:

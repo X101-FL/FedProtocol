@@ -2,28 +2,28 @@ import os
 
 from fedprototype.base.base_state_saver import BaseStateSaver
 from fedprototype.tools.io import save_pkl, load_pkl
-from fedprototype.typing import FilePath, FileDir, StateDict
+from fedprototype.typing import StateKey, FilePath, FileDir, StateDict
 
 
 class LocalStateSaver(BaseStateSaver):
     def __init__(self):
         self.home_dir = ''
 
-    def exists(self, file_path: FilePath) -> bool:
-        file_path = self._abs_file_path(file_path)
+    def exists(self, state_key: StateKey) -> bool:
+        file_path = self._to_file_path(state_key)
         return os.path.exists(file_path)
 
-    def _save(self, file_path: FilePath, state_dict: StateDict) -> None:
-        file_path = self._abs_file_path(file_path)
+    def _save(self, state_key: StateKey, state_dict: StateDict) -> None:
+        file_path = self._to_file_path(state_key)
         save_pkl(state_dict, file_path)
 
-    def _load(self, file_path: FilePath) -> StateDict:
-        file_path = self._abs_file_path(file_path)
+    def _load(self, state_key: StateKey) -> StateDict:
+        file_path = self._to_file_path(state_key)
         return load_pkl(file_path)
 
-    def _abs_file_path(self, file_path: FilePath):
-        return os.path.join(self.home_dir, file_path)
-
-    def set_home_dir(self, home_dir: FileDir):
+    def set_home_dir(self, home_dir: FileDir) -> 'LocalStateSaver':
         self.home_dir = home_dir
         return self
+
+    def _to_file_path(self, state_key: StateKey) -> FilePath:
+        return os.path.join(self.home_dir, f"{state_key}.pkl")

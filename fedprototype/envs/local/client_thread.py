@@ -7,9 +7,9 @@ class ClientThread(Thread):
     def __init__(self, client: Client, entry_func: str, entry_kwargs: Dict[str, Any], serial_lock: Lock):
         super(ClientThread, self).__init__()
         self.client = client
-        self.serial_lock = serial_lock
         self.entry_func = entry_func
         self.entry_kwargs = entry_kwargs
+        self.serial_lock = serial_lock
 
     def run(self) -> None:
         self.serial_lock.acquire()

@@ -9,9 +9,10 @@ _MESSAGE_BUFFER = DefaultDict[Receiver, List[Tuple[MessageName, MessageObj]]]
 
 
 class BaseComm(ABC):
+
     def __init__(self):
         self._message_buffer: _MESSAGE_BUFFER = defaultdict(lambda: [])
-        self.logger: Logger = None
+        self.logger: Optional[Logger] = None
 
     def send(self, receiver: Receiver, message_name: MessageName, message_obj: MessageObj, flush: bool = True) -> None:
         message_obj = copy.deepcopy(message_obj)
@@ -58,7 +59,7 @@ class BaseComm(ABC):
         pass
 
     @abstractmethod
-    def clear(self, sender: Sender = None, message_name: MessageName = None) -> None:
+    def clear(self, sender: Optional[Sender] = None, message_name: Optional[MessageName] = None) -> None:
         pass
 
     @abstractmethod
