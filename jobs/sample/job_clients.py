@@ -67,7 +67,7 @@ class PassiveClient(BaseClient):
         self.train_client.init()
         self.eval_client.init()
         train_ans, eval_ans = None, None
-        while self.comm.get("active", "new_epoch"):
+        while self.comm.receive("active", "new_epoch"):
             train_ans = self.train_client.run(id_list, features)
             eval_ans = self.eval_client.run(id_list, features,
                                             train_ans['model'], train_ans['encrypt_keys'])
