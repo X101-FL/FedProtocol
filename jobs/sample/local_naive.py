@@ -15,7 +15,7 @@ class ActiveClient(BaseClient):
         pass
 
     def run(self, id_list, label_list, feature_list):
-        for passive in self.comm.get_role_name_list("Passive"):
+        for passive in self.comm.list_role_name("Passive"):
             time.sleep(np.random.randint(0, 5))
             self.comm.send(f"{passive}", "id_list", id_list, flush=False)
             self.logger.info(

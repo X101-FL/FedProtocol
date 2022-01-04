@@ -1,3 +1,3 @@
-from .local.local_env import LocalEnv as LocalEnv
+from .local.local_env import LocalEnv
 
-__all__ = ["LocalEnv"]
+__all__ = ['LocalEnv']
