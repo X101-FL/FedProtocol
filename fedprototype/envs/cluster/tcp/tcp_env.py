@@ -29,6 +29,7 @@ class TCPEnv(BaseEnv):
                                       'port': local_port})
         comm_server.start()
         print(run_kwargs)
+        client.init()
         ans = client.run(**run_kwargs)
         client.close()
         comm_server.terminate()
@@ -36,8 +37,9 @@ class TCPEnv(BaseEnv):
 
     def _set_client(self, client):
         client.comm = self._get_comm(client.role_name)
-        # client._set_logger(self._get_logger(client))
-        return client
+        # TODO: 添加logger
+        # client._set_comm_logger()  # 这里调用了私有函数，因为这个函数不应暴露给用户
+        # client._set_client_logger()
 
     def _get_comm(self, role_name):
         comm = TCPComm(role_name,

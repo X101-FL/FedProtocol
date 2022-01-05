@@ -14,7 +14,8 @@ class ActiveClient(BaseClient):
         pass
 
     def run(self):
-        self.comm.send('passive', 'test_message_name', {'haha': "hehe"})
+        # 调用TCPComm的_send方法
+        self.comm.send('passive', 'label_in_active', [1, 0, 0, 1, 1, 1, 0])
 
 
 class PassiveClient(BaseClient):
@@ -28,13 +29,11 @@ class PassiveClient(BaseClient):
         pass
 
     def run(self):
-        print("GOOD")
-        data = self.comm.receive('active', message_name='test_message_name')
-        print(data)
+        print("--- passive client run ---")
+        data = self.comm.receive('active', message_name='label_in_active')
+        print("receive:", data)
         import time
-        time.sleep(30)
-
-
+        time.sleep(100)
 
 
 def get_args():
@@ -55,9 +54,11 @@ if __name__ == '__main__':
     from fedprototype.envs.cluster.tcp import TCPEnv
 
     TCPEnv() \
-        .add_client(role_name='active', ip="127.0.0.1", port=5650) \
-        .add_client(role_name='passive', ip="127.0.0.1", port=5651) \
+        .add_client(role_name='active', ip="127.0.0.1", port=6060) \
+        .add_client(role_name='passive', ip="127.0.0.1", port=7070) \
         .run(client=client)
+
+    print("Finish TCP task")
 
 # activate pytorch
 # cd C:\PyProject\FedPrototype\jobs\sample

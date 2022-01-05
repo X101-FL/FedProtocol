@@ -33,25 +33,34 @@ def start_server(role_name_url_dict, host="127.0.0.1", port=8081):
 
         # MESSAGE_BANK = app.extra['message_hub']
         MESSAGE_BANK = message_hub
-        if sender in MESSAGE_BANK:
-            if message_name in MESSAGE_BANK[sender]:
-                file = MESSAGE_BANK[sender][message_name]
-                del MESSAGE_BANK[sender][message_name]
+        if MESSAGE_BANK == dict():
+            return 404
+        else:
+            message_id = (sender, message_name)
+            if message_id in MESSAGE_BANK:
+                print(sender)
+                file = MESSAGE_BANK[message_id]
+                del MESSAGE_BANK[message_id]
                 return StreamingResponse(io.BytesIO(file))
-        return '404'  # TODO: 改成response
+        # return '404'  # TODO: 改成response
 
     @app.post("/message_sender")
     async def message_sender(file: bytes = File(...),
                              receiver: Optional[str] = Header(None),  # TODO: 把Optional改成必需
                              sender: Optional[str] = Header(None),
-                             message_name: Optional[str] = Header(None)):
+                             message_name: Optional[str] = Header(None),
+                             bbb: Optional[str] = Header(None)):
+        print("========== message_sender app post")
         start = time.time()
         try:
+            print(f"----- {role_name_url_dict[receiver]}/message_receiver")
             r = requests.post(f"{role_name_url_dict[receiver]}/message_receiver",
                               files={'file': file},
                               headers={'sender': sender,
-                                       'message_name': message_name})
-            return {"status": r, 'time': time.time() - start, 'message_name': message_name}
+                                       'receiver': receiver,
+                                       'message-name': message_name})
+            print(r.status_code)
+            return {"status":'success', 'time': time.time() - start, 'message_name': message_name}
         except Exception as e:
             return {"message": str(e), 'time': time.time() - start, 'message_name': message_name}
 
@@ -61,8 +70,9 @@ def start_server(role_name_url_dict, host="127.0.0.1", port=8081):
                                message_name: Optional[str] = Header(None)):
         start = time.time()
         try:
-            message_hub[(sender, message_name)] = file
             print(f"get message {sender, message_name} : {pickle.loads(file)}")
+            message_hub[(sender, message_name)] = file
+            print(message_hub)
             return {"status": 'success', 'time': time.time() - start, 'message_name': message_name}
         except Exception as e:
             return {"message": str(e), 'time': time.time() - start, 'message_name': message_name}

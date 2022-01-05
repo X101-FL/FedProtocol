@@ -23,19 +23,17 @@ class TCPComm(BaseComm):
 
     def _send(self, receiver: str, message_name_obj_list: List[Tuple[str, Any]]) -> None:
         for message_name, obj in message_name_obj_list:
-            print(message_name, obj)
             self._put_message(receiver, message_name, obj)
 
     def _put_message(self, receiver: str, message_name: str, obj: Any) -> None:
-        print("-------")
-        print(receiver)
-        print(message_name)
-        print(obj)
         r = requests.post(self.put_url,
                           files={'file': pickle.dumps(obj)},
-                          headers={'sender': self.role_name,
-                                   'receiver': receiver,
-                                   'message_name': message_name})
+                          headers={
+                              'receiver': receiver,
+                              'sender': self.role_name,
+                              'message-name': message_name})
+        print("runner", r.content)
+        print("____________________")
         print(r.text)
         # self.logger.debug(f"Requests now is {r.text}")
 
@@ -44,13 +42,12 @@ class TCPComm(BaseComm):
             timeout = 1000
         local_url = self.local_url + '/get_responder'
         count = 0
-        r = requests.get(local_url, headers={'sender': self.role_name,
-                                             'message_name': message_name})
-        print("-----------", r)
+        r = requests.get(local_url, headers={'sender': sender,
+                                             'message-name': message_name})
         while r.text == '404':
             time.sleep(1)
-            r = requests.get(local_url, headers={'sender': self.role_name,
-                                                 'message_name': message_name})
+            r = requests.get(local_url, headers={'sender': sender,
+                                                 'message-name': message_name})
             count += 1
             if count > timeout:
                 return '404'
