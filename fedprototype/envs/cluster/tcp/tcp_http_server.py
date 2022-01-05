@@ -9,7 +9,10 @@ import uvicorn
 import pickle
 
 
-def start_server(role_name_url_dict, host="127.0.0.1", port=8081):
+def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081):
+    # message_hub: Dict[(Sender, MessagName), Queue] = {}  # TODO: 1. 改成队列 2.改成message space（考虑子协议）
+    # TODO: 如果这个server还没开启，就每隔5秒尝试一次，直到它启动后，设为true
+    # role_server_is_ready:Dict[RoleName,bool] = {}
     message_hub = {}  # TODO: 1. 改成队列 2.改成message space（考虑子协议）
 
     app = FastAPI()
@@ -31,23 +34,22 @@ def start_server(role_name_url_dict, host="127.0.0.1", port=8081):
     async def get_responder(sender: Optional[str] = Header(None),
                             message_name: Optional[str] = Header(None)):
 
+        # TODO：添加心跳机制，检测另一个服务是否挂掉
+        # TODO: 这responder内sleep，超过5次后询问一次
         # MESSAGE_BANK = app.extra['message_hub']
         MESSAGE_BANK = message_hub
-        if MESSAGE_BANK == dict():
-            return 404
+        message_id = (sender, message_name)
+        if message_id in MESSAGE_BANK:
+            print(sender)
+            file = MESSAGE_BANK[message_id]
+            del MESSAGE_BANK[message_id]
+            return StreamingResponse(io.BytesIO(file))
         else:
-            message_id = (sender, message_name)
-            if message_id in MESSAGE_BANK:
-                print(sender)
-                file = MESSAGE_BANK[message_id]
-                del MESSAGE_BANK[message_id]
-                return StreamingResponse(io.BytesIO(file))
-        # return '404'  # TODO: 改成response
+            return 404
 
     @app.post("/message_sender")
     async def message_sender(file: bytes = File(...),
                              receiver: Optional[str] = Header(None),  # TODO: 把Optional改成必需
-                             sender: Optional[str] = Header(None),
                              message_name: Optional[str] = Header(None),
                              bbb: Optional[str] = Header(None)):
         print("========== message_sender app post")
@@ -56,11 +58,11 @@ def start_server(role_name_url_dict, host="127.0.0.1", port=8081):
             print(f"----- {role_name_url_dict[receiver]}/message_receiver")
             r = requests.post(f"{role_name_url_dict[receiver]}/message_receiver",
                               files={'file': file},
-                              headers={'sender': sender,
+                              headers={'sender': role_name,
                                        'receiver': receiver,
                                        'message-name': message_name})
             print(r.status_code)
-            return {"status":'success', 'time': time.time() - start, 'message_name': message_name}
+            return {"status": 'success', 'time': time.time() - start, 'message_name': message_name}
         except Exception as e:
             return {"message": str(e), 'time': time.time() - start, 'message_name': message_name}
 

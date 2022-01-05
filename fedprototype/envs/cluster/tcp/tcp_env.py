@@ -25,6 +25,7 @@ class TCPEnv(BaseEnv):
 
         comm_server = Process(target=start_server, name=f"{client.role_name}:server",
                               kwargs={'role_name_url_dict': self.role_name_url_dict,
+                                      'role_name': client.role_name,
                                       'host': local_ip,
                                       'port': local_port})
         comm_server.start()

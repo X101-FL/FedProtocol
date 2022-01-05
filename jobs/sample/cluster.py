@@ -16,6 +16,8 @@ class ActiveClient(BaseClient):
     def run(self):
         # 调用TCPComm的_send方法
         self.comm.send('passive', 'label_in_active', [1, 0, 0, 1, 1, 1, 0])
+        print("FF")
+        self.comm.send('passive', 'feature', [1, 0, 0, 1, 1, 1, 0])
 
 
 class PassiveClient(BaseClient):
@@ -32,8 +34,7 @@ class PassiveClient(BaseClient):
         print("--- passive client run ---")
         data = self.comm.receive('active', message_name='label_in_active')
         print("receive:", data)
-        import time
-        time.sleep(100)
+        data = self.comm.receive('active', message_name='feature')
 
 
 def get_args():
