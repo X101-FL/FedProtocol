@@ -1,4 +1,5 @@
 import argparse
+import pickle
 
 from fedprototype import BaseClient
 
@@ -33,8 +34,9 @@ class PassiveClient(BaseClient):
     def run(self):
         print("--- passive client run ---")
         data = self.comm.receive('active', message_name='label_in_active')
-        print("receive:", data)
+        print("receive:", pickle.loads(data))
         data = self.comm.receive('active', message_name='feature')
+        print("receive:", pickle.loads(data))
 
 
 def get_args():
@@ -64,5 +66,5 @@ if __name__ == '__main__':
 # activate pytorch
 # cd C:\PyProject\FedPrototype\jobs\sample
 # set PYTHONPATH=C:/PyProject/FedPrototype
-# python -u cluster.py --role active
-# python -u cluster.py --role passive
+# python -u C:\PyProject\FedPrototype\jobs\sample\cluster.py --role active
+# python -u C:\PyProject\FedPrototype\jobs\sample\cluster.py --role passive

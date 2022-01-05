@@ -44,7 +44,7 @@ class TCPComm(BaseComm):
         count = 0
         r = requests.get(local_url, headers={'sender': sender,
                                              'message-name': message_name})
-        while r.text == '404':
+        while r.status_code == 404:
             time.sleep(1)
             r = requests.get(local_url, headers={'sender': sender,
                                                  'message-name': message_name})
@@ -53,7 +53,7 @@ class TCPComm(BaseComm):
                 return '404'
         return r.content
 
-    # TODO:Next step
+    # TODO: 添加watch函数
     def watch_(self, sender_message_name_tuple_list: List[Tuple[str, str]], timeout: Optional[int] = None) -> \
             Generator[Tuple[str, str, Any], None, None]:
         pass
