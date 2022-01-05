@@ -10,7 +10,7 @@ import pickle
 
 
 def start_server(role_name_url_dict, host="127.0.0.1", port=8081):
-    message_hub = {}
+    message_hub = {}  # TODO: 1. 改成队列 2.改成message space（考虑子协议）
 
     app = FastAPI()
 
@@ -31,13 +31,14 @@ def start_server(role_name_url_dict, host="127.0.0.1", port=8081):
     async def get_responder(sender: Optional[str] = Header(None),
                             message_name: Optional[str] = Header(None)):
 
-        MESSAGE_BANK = app.extra['message_hub']
+        # MESSAGE_BANK = app.extra['message_hub']
+        MESSAGE_BANK = message_hub
         if sender in MESSAGE_BANK:
             if message_name in MESSAGE_BANK[sender]:
                 file = MESSAGE_BANK[sender][message_name]
                 del MESSAGE_BANK[sender][message_name]
                 return StreamingResponse(io.BytesIO(file))
-        return '404'
+        return '404'  # TODO: 改成response
 
     @app.post("/message_sender")
     async def message_sender(file: bytes = File(...),
@@ -47,7 +48,7 @@ def start_server(role_name_url_dict, host="127.0.0.1", port=8081):
         start = time.time()
         try:
             r = requests.post(f"{role_name_url_dict[receiver]}/message_receiver",
-                              files=file,
+                              files={'file': file},
                               headers={'sender': sender,
                                        'message_name': message_name})
             return {"status": r, 'time': time.time() - start, 'message_name': message_name}

@@ -2,7 +2,7 @@ from logging import Logger
 from multiprocessing import Process
 
 from fedprototype import BaseClient
-from fedprototype.envs.base_env import BaseEnv
+from fedprototype.base.base_env import BaseEnv
 from fedprototype.envs.cluster.tcp.tcp_comm import TCPComm
 from fedprototype.envs.cluster.tcp.tcp_http_server import start_server
 
@@ -28,15 +28,15 @@ class TCPEnv(BaseEnv):
                                       'host': local_ip,
                                       'port': local_port})
         comm_server.start()
-        client.init()
+        print(run_kwargs)
         ans = client.run(**run_kwargs)
         client.close()
         comm_server.terminate()
         return ans
 
     def _set_client(self, client):
-        client.set_comm(self._get_comm(client.role_name))
-        client.set_logger(self._get_logger(client))
+        client.comm = self._get_comm(client.role_name)
+        # client._set_logger(self._get_logger(client))
         return client
 
     def _get_comm(self, role_name):

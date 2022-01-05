@@ -27,9 +27,14 @@ class PassiveClient(BaseClient):
     def close(self) -> None:
         pass
 
-    def run(self, feature):
+    def run(self):
+        print("GOOD")
+        data = self.comm.receive('active', message_name='test_message_name')
+        print(data)
         import time
         time.sleep(30)
+
+
 
 
 def get_args():
@@ -41,6 +46,7 @@ def get_args():
 
 if __name__ == '__main__':
     args = get_args()
+    # TODO: active运行时需要等待passive接受信息
     if args.role == 'active':
         client = ActiveClient('active')
     else:
