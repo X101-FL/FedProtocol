@@ -10,7 +10,8 @@ import uvicorn
 import pickle
 
 
-def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081):
+def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
+                 maximum_start_latency=10):
     # message_hub: Dict[(Sender, MessagName), Queue] = {}  # TODO: 改成message space（考虑子协议）
     # role_server_is_ready:Dict[RoleName,bool] = {}
     def func():
@@ -19,13 +20,11 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081):
     role_server_is_ready = defaultdict(func)
     message_hub = defaultdict(deque)  # TODO: 改成message space（考虑子协议）
 
-    MAX_TIME = 10  # 等待另一个server启动的最大时间
-
     app = FastAPI()
 
-    @app.get("/")
-    async def root():
-        pass
+    @app.post("/heartbeat")
+    async def heartbeat():
+        return None
 
     @app.get("/get_role_name_url")
     async def get_role_name_url():
@@ -48,27 +47,27 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081):
         message_id = (sender, message_name)
 
         if not role_server_is_ready[sender]:  # 心跳：等待Server A启动
-            for i in range(MAX_TIME + 1):
+            for i in range(maximum_start_latency + 1):
                 try:
-                    r = requests.get(f"{role_name_url_dict[sender]}")
+                    r = requests.post(f"{role_name_url_dict[sender]}/heartbeat")
                     # 完成了role_server_is_ready
                     role_server_is_ready[sender] = True
                     print(f"Server {sender} has been running.")
                     break
                 except Exception as e:
-                    if i < MAX_TIME:
+                    if i < maximum_start_latency:
                         interval = 1
                         time.sleep(interval)
                     else:
-                        raise ConnectionError(f"{role_name} client has been waiting for {MAX_TIME * interval}s, "
+                        raise ConnectionError(f"{role_name} client has been waiting for {maximum_start_latency * interval}s, "
                                               f"but {sender} service has not been started.")
 
         if role_server_is_ready[sender]:
             while not MESSAGE_BANK[message_id]:  # 消息为空，需要等待
                 try:
                     time.sleep(1)  # 每隔1秒问一下另一个server是不是还在服务
-                    print(f"{role_name_url_dict[sender]}")
-                    r = requests.get(f"{role_name_url_dict[sender]}")
+                    # print(f"{role_name_url_dict[sender]}")
+                    r = requests.post(f"{role_name_url_dict[sender]}/heartbeat")
                 except Exception as e:
                     raise ConnectionError(f"{sender} client has been crashed.")
 
@@ -78,24 +77,24 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081):
 
     @app.post("/message_sender")
     async def message_sender(file: bytes = File(...),
-                             receiver: Optional[str] = Header(None),  # TODO: 把Optional改成必需
+                             receiver: Optional[str] = Header(None),
                              message_name: Optional[str] = Header(None)):
         start = time.time()
 
         if not role_server_is_ready[receiver]:  # 心跳：等待Server B启动
-            for i in range(MAX_TIME + 1):
+            for i in range(maximum_start_latency + 1):
                 try:
-                    r = requests.get(f"{role_name_url_dict[receiver]}")
+                    r = requests.post(f"{role_name_url_dict[receiver]}/heartbeat")
                     # 完成了role_server_is_ready
                     role_server_is_ready[receiver] = True
                     print(f"Server {receiver} has been running.")
                     break
                 except Exception as e:
-                    if i < MAX_TIME:
+                    if i < maximum_start_latency:
                         interval = 1
                         time.sleep(interval)
                     else:
-                        raise ConnectionError(f"{role_name} client has been waiting for {MAX_TIME * interval}s, "
+                        raise ConnectionError(f"{role_name} client has been waiting for {maximum_start_latency * interval}s, "
                                               f"but {receiver} service has not been started.")
 
         if role_server_is_ready[receiver]:  # 心跳：监测另一个Server是否挂掉
@@ -116,7 +115,6 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081):
         start = time.time()
         # print(f"get message {sender, message_name} : {pickle.loads(file)}")
         message_hub[(sender, message_name)].append(file)
-        # print(message_hub)
         return {"status": 'success', 'time': time.time() - start, 'message_name': message_name}
 
     # https://www.uvicorn.org/settings/#logging
