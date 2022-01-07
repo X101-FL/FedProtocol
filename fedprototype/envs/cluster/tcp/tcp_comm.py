@@ -32,25 +32,30 @@ class TCPComm(BaseComm):
                               'receiver': receiver,
                               'sender': self.role_name,
                               'message-name': message_name})
-        print("runner", r.content)
-        print("____________________")
-        print(r.text)
+        # print("runner", r.content)
+        print(f"post message: {r.json()}")
+        print("------")
         # self.logger.debug(f"Requests now is {r.text}")
 
     def receive(self, sender, message_name, timeout=-1):
-        if timeout == -1:
-            timeout = 1000
+        # if timeout == -1:
+        #     timeout = 1000
+        # TODO: 打包成参数
+
         local_url = self.local_url + '/get_responder'
-        count = 0
         r = requests.get(local_url, headers={'sender': sender,
                                              'message-name': message_name})
-        while r.status_code == 404:
-            time.sleep(1)
-            r = requests.get(local_url, headers={'sender': sender,
-                                                 'message-name': message_name})
-            count += 1
-            if count > timeout:
-                return '404'
+
+        # count = 0
+        # r = requests.get(local_url, headers={'sender': sender,
+        #                                      'message-name': message_name})
+        # while r.status_code == 404:
+        #     time.sleep(1)
+        #     r = requests.get(local_url, headers={'sender': sender,
+        #                                          'message-name': message_name})
+        #     count += 1
+        #     if count > timeout:
+        #         return '404'
         return r.content
 
     # TODO: 添加watch函数

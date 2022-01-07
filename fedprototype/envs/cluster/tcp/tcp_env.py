@@ -29,11 +29,16 @@ class TCPEnv(BaseEnv):
                                       'host': local_ip,
                                       'port': local_port})
         comm_server.start()
-        print(run_kwargs)
         client.init()
-        ans = client.run(**run_kwargs)
+        try:
+            ans = client.run(**run_kwargs)
+        except Exception as e:
+            print("Exit Sub Process")
+            comm_server.terminate()  # 子程序
+            print("Exit Main Process")
+            exit()  # 主程序
         client.close()
-        comm_server.terminate()
+        comm_server.terminate()  # 子程序
         return ans
 
     def _set_client(self, client):

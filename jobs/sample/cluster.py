@@ -1,5 +1,6 @@
 import argparse
 import pickle
+import time
 
 from fedprototype import BaseClient
 
@@ -16,9 +17,13 @@ class ActiveClient(BaseClient):
 
     def run(self):
         # 调用TCPComm的_send方法
-        self.comm.send('passive', 'label_in_active', [1, 0, 0, 1, 1, 1, 0])
-        print("FF")
-        self.comm.send('passive', 'feature', [1, 0, 0, 1, 1, 1, 0])
+        print("--- active client run ---")
+        self.comm.send('passive', 'label_in_active', [1, 1, 0, 1, 1, 1, 0])
+        time.sleep(5)
+        print("send -------------")
+        self.comm.send('passive', 'label_in_active', [0, 0, 0, 0, 1, 1])
+        self.comm.send('passive', 'feature', [1,2,3,4,5])
+        time.sleep(50)
 
 
 class PassiveClient(BaseClient):
@@ -34,9 +39,15 @@ class PassiveClient(BaseClient):
     def run(self):
         print("--- passive client run ---")
         data = self.comm.receive('active', message_name='label_in_active')
-        print("receive:", pickle.loads(data))
+        time.sleep(10)
+        print("PassiveClient receive label_in_active:", pickle.loads(data))
         data = self.comm.receive('active', message_name='feature')
-        print("receive:", pickle.loads(data))
+        print("PassiveClient receive feature:", pickle.loads(data))
+        data = self.comm.receive('active', message_name='label_in_active')
+        print("PassiveClient receive label_in_active:", pickle.loads(data))
+
+        # 如果message_hub空了，会一直进行receive，除非另一边服务挂了
+        data = self.comm.receive('active', message_name='label_in_active')
 
 
 def get_args():
