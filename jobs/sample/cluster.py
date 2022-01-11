@@ -24,7 +24,7 @@ class ActiveClient(BaseClient):
         print("send msg 2")
         self.comm.send('passive', 'feature', [1, 2, 3, 4, 5], flush=True)
         print("send msg 3")
-        time.sleep(20)
+        time.sleep(5)
 
 
 class PassiveClient(BaseClient):

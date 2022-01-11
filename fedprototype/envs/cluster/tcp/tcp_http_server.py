@@ -96,7 +96,7 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
     log_config["formatters"]["default"]["fmt"] = "FastAPI %(levelname)s: %(message)s"
     log_config["formatters"]["access"]["fmt"] = "[FastAPI %(levelname)s] %(asctime)s --> (%(message)s)"
     log_config["formatters"]["access"]["datefmt"] = "%Y-%m-%d %H:%M:%S"
-    uvicorn.run(app=app, host=host, port=port, debug=True, access_log=True, log_level='info', use_colors=True)
+    uvicorn.run(app=app, host=host, port=port, debug=True, access_log=True, log_level='warning', use_colors=True)
 
 
 if __name__ == "__main__":

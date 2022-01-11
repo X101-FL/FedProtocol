@@ -50,4 +50,4 @@ class TCPComm(BaseComm):
         pass
 
     def list_role_name(self, role_name_prefix: RoleNamePrefix) -> List[RoleName]:
-        pass
+        return [role_name for role_name in self.other_role_name_set if role_name.startswith(role_name_prefix)]
