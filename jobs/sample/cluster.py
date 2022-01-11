@@ -1,6 +1,8 @@
 import argparse
 import pickle
 import time
+import numpy as np
+import torch
 
 from fedprototype import BaseClient
 
@@ -18,7 +20,8 @@ class ActiveClient(BaseClient):
     def run(self):
         # 调用TCPComm的_send方法
         print("--- active client run ---")
-        self.comm.send('passive', 'label_in_active', [1, 1, 0, 1, 1, 1, 0], flush=False)
+        self.comm.send('passive', 'label_in_active', [np.array([1, 1, 0, 1, 1, 1, 0]), torch.tensor([1, 2])],
+                       flush=False)
         print("send msg 1")
         self.comm.send('passive', 'label_in_active', [{"One": 1}, {"Two": 2}, 3], flush=False)
         print("send msg 2")
@@ -42,11 +45,11 @@ class PassiveClient(BaseClient):
         data = self.comm.receive('active', message_name='label_in_active')
         # print(data, type(data))
         # print(data,  pickle.loads(data))
-        print("PassiveClient receive label_in_active:", data)
+        print("PassiveClient receive label_in_active:", pickle.loads(data))
         data = self.comm.receive('active', message_name='feature')
-        print("PassiveClient receive feature:", data)
+        print("PassiveClient receive feature:", pickle.loads(data))
         data = self.comm.receive('active', message_name='label_in_active')
-        print("PassiveClient receive label_in_active:", data)
+        print("PassiveClient receive label_in_active:", pickle.loads(data))
 
         # 如果message_hub空了，会一直进行receive，除非另一边服务挂了
         # data = self.comm.receive('active', message_name='label_in_active')

@@ -1,6 +1,5 @@
 import time
 from typing import List, Optional, Tuple, Any, Generator
-import json
 
 import requests
 
@@ -30,7 +29,7 @@ class TCPComm(BaseComm):
 
     def receive(self, sender, message_name, timeout=-1):
         r = requests.get(self.get_url, headers={'sender': sender, 'message-name': message_name})
-        return r.json()
+        return r.content
 
     # TODO: 添加watch函数
     def watch_(self, sender_message_name_tuple_list: List[Tuple[str, str]], timeout: Optional[int] = None) -> \

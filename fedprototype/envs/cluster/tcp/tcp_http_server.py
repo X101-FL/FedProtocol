@@ -4,7 +4,7 @@ from collections import deque, defaultdict
 from typing import Optional
 
 import requests
-from fastapi import FastAPI, File, Header, HTTPException
+from fastapi import FastAPI, File, Header, HTTPException, Response
 from starlette.responses import StreamingResponse
 import uvicorn
 import pickle
@@ -64,7 +64,7 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
 
             if MESSAGE_BANK[message_id]:
                 file = MESSAGE_BANK[message_id].popleft()
-                return file
+                return Response(content=file)
 
     @app.post("/message_sender")
     def message_sender(message_bytes: bytes = File(...),
@@ -88,7 +88,7 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
                          sender: Optional[str] = Header(None)):
         start = time.time()
         for (message_name, single_message_bytes) in pickle.loads(message_bytes):
-            message_hub[(sender, message_name)].append(single_message_bytes)
+            message_hub[(sender, message_name)].append(pickle.dumps(single_message_bytes))
 
         return {"status": 'success', 'time': time.time() - start, 'message_name': message_name}
 
@@ -96,7 +96,7 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
     log_config["formatters"]["default"]["fmt"] = "FastAPI %(levelname)s: %(message)s"
     log_config["formatters"]["access"]["fmt"] = "[FastAPI %(levelname)s] %(asctime)s --> (%(message)s)"
     log_config["formatters"]["access"]["datefmt"] = "%Y-%m-%d %H:%M:%S"
-    uvicorn.run(app=app, host=host, port=port, debug=True, access_log=True, log_level='warning', use_colors=True)
+    uvicorn.run(app=app, host=host, port=port, debug=True, access_log=True, log_level='info', use_colors=True)
 
 
 if __name__ == "__main__":
