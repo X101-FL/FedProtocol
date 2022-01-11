@@ -1,5 +1,6 @@
 import time
 from typing import List, Optional, Tuple, Any, Generator
+import json
 
 import requests
 
@@ -20,43 +21,16 @@ class TCPComm(BaseComm):
         self.logger = None
 
         self.put_url = self.local_url + '/message_sender'
+        self.get_url = self.local_url + '/get_responder'
 
     def _send(self, receiver: str, message_name_obj_list: List[Tuple[str, Any]]) -> None:
-        for message_name, obj in message_name_obj_list:
-            self._put_message(receiver, message_name, obj)
-
-    def _put_message(self, receiver: str, message_name: str, obj: Any) -> None:
-        r = requests.post(self.put_url,
-                          files={'file': pickle.dumps(obj)},
-                          headers={
-                              'receiver': receiver,
-                              'sender': self.role_name,
-                              'message-name': message_name})
-        # print("runner", r.content)
-        print(f"post message: {r.json()}")
-        print("------")
-        # self.logger.debug(f"Requests now is {r.text}")
+        requests.post(self.put_url,
+                      files={'message_bytes': pickle.dumps(message_name_obj_list)},
+                      headers={'receiver': receiver})
 
     def receive(self, sender, message_name, timeout=-1):
-        # if timeout == -1:
-        #     timeout = 1000
-        # TODO: 打包成参数
-
-        local_url = self.local_url + '/get_responder'
-        r = requests.get(local_url, headers={'sender': sender,
-                                             'message-name': message_name})
-
-        # count = 0
-        # r = requests.get(local_url, headers={'sender': sender,
-        #                                      'message-name': message_name})
-        # while r.status_code == 404:
-        #     time.sleep(1)
-        #     r = requests.get(local_url, headers={'sender': sender,
-        #                                          'message-name': message_name})
-        #     count += 1
-        #     if count > timeout:
-        #         return '404'
-        return r.content
+        r = requests.get(self.get_url, headers={'sender': sender, 'message-name': message_name})
+        return r.json()
 
     # TODO: 添加watch函数
     def watch_(self, sender_message_name_tuple_list: List[Tuple[str, str]], timeout: Optional[int] = None) -> \
