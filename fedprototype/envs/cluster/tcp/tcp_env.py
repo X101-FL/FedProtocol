@@ -5,6 +5,8 @@ from fedprototype import BaseClient
 from fedprototype.base.base_env import BaseEnv
 from fedprototype.envs.cluster.tcp.tcp_comm import TCPComm
 from fedprototype.envs.cluster.tcp.tcp_http_server import start_server
+from fedprototype.tools.log import LocalLoggerFactory
+from fedprototype.tools.state_saver import LocalStateSaver
 
 
 class TCPEnv(BaseEnv):
@@ -12,6 +14,9 @@ class TCPEnv(BaseEnv):
         super().__init__()
         self.role_name_ip_dict = {}
         self.role_name_url_dict = {}
+        self._default_setting()
+        print(self.logger_factory)
+
 
     def add_client(self, role_name, ip, port):
         self.role_name_ip_dict[role_name] = (ip, port)
@@ -41,11 +46,18 @@ class TCPEnv(BaseEnv):
         comm_server.terminate()  # 子程序
         return ans
 
+    def _default_setting(self):
+        print(123)
+        self.set_logger_factory(LocalLoggerFactory)
+        self.set_state_saver(LocalStateSaver())
+
     def _set_client(self, client):
+        client.env = self
+        client.track_path = client.role_name
         client.comm = self._get_comm(client.role_name)
         # TODO: 添加logger
-        # client._set_comm_logger()  # 这里调用了私有函数，因为这个函数不应暴露给用户
-        # client._set_client_logger()
+        client._set_comm_logger()  # 这里调用了私有函数，因为这个函数不应暴露给用户
+        client._set_client_logger()
 
     def _get_comm(self, role_name):
         comm = TCPComm(role_name,
@@ -56,3 +68,4 @@ class TCPEnv(BaseEnv):
     @classmethod
     def _get_logger(cls, client: BaseClient) -> Logger:
         pass
+

@@ -43,6 +43,14 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
     def heartbeat():
         return None
 
+    @app.post("/clear")
+    def clear(sender: Optional[str] = Header(None),
+              message_name: Optional[str] = Header(None)):
+        message_id = (sender, message_name)
+        if message_hub[message_id]:
+            del message_hub[message_id]
+        return None
+
     @app.get("/get_responder")
     def get_responder(sender: Optional[str] = Header(None),
                       message_name: Optional[str] = Header(None)):
@@ -60,6 +68,8 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
                     time.sleep(alive_interval)  # 每隔几秒问一下另一个server是不是还在服务
                     requests.post(f"{role_name_url_dict[sender]}/heartbeat")
                 except Exception:
+                    # exit保证进程能及时停止
+                    exit()
                     raise ConnectionError(f"{sender} client has been crashed.")
 
             if MESSAGE_BANK[message_id]:
@@ -89,6 +99,7 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
         start = time.time()
         for (message_name, single_message_bytes) in pickle.loads(message_bytes):
             message_hub[(sender, message_name)].append(pickle.dumps(single_message_bytes))
+            print((sender, message_name))
 
         return {"status": 'success', 'time': time.time() - start, 'message_name': message_name}
 

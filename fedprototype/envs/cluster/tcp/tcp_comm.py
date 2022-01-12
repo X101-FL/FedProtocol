@@ -21,6 +21,7 @@ class TCPComm(BaseComm):
 
         self.put_url = self.local_url + '/message_sender'
         self.get_url = self.local_url + '/get_responder'
+        self.clear_url = self.local_url + '/clear'
 
     def _send(self, receiver: str, message_name_obj_list: List[Tuple[str, Any]]) -> None:
         requests.post(self.put_url,
@@ -42,11 +43,15 @@ class TCPComm(BaseComm):
     def get_role_name_list(self, role_name_prefix: str) -> List[str]:
         pass
 
-    def _sub_comm(self, message_space: MessageSpace) -> Comm:
-        pass
-
     def clear(self, sender: Optional[Sender] = None, message_name: Optional[MessageName] = None) -> None:
-        pass
+        r = requests.post(self.clear_url, headers={'sender': sender, 'message-name': message_name})
 
     def list_role_name(self, role_name_prefix: RoleNamePrefix) -> List[RoleName]:
         return [role_name for role_name in self.other_role_name_set if role_name.startswith(role_name_prefix)]
+
+    def _sub_comm(self, message_space: MessageSpace) -> Comm:
+        comm = TCPComm(self.role_name,
+                       self.local_url,
+                       self.other_role_name_set)
+        comm.message_space = message_space
+        return comm
