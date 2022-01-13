@@ -1,4 +1,5 @@
 import argparse
+import pickle
 
 from fedprototype import BaseClient
 
@@ -79,7 +80,8 @@ class Level1ClientB(BaseClient):
         # Level2B在close时清空了它所在的消息总线
         # 如果不做消息空间隔离，Level2B会同时清空父级的消息，下面这段就会卡住，因为消息总线里面没有消息了
         whoareyou = self.comm.receive('Level1A', 'whoami')
-        self.logger.info(f"get whoareyou : {whoareyou}")
+        print(f"get whoareyou : {pickle.loads(whoareyou)}")
+        self.logger.info(f"get whoareyou : {pickle.loads(whoareyou)}")
 
         with self.l2_client2.init():
             self.l2_client2.run()

@@ -92,6 +92,7 @@ class BaseClient(ABC):
         if message_space:
             comm = comm._sub_comm(message_space)  # 这里调用了私有函数，这个函数不应该声明为公有函数（对用户隐藏），IDE可能会报警告，但是没关系
             self._set_comm_logger(comm)
+        # TODO: role_rename_dict可能不再被需要
         if role_rename_dict:
             comm = CommRenameWrapper(self.role_name, comm, role_rename_dict)
             self._set_comm_logger(comm)

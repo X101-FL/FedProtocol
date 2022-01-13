@@ -1,6 +1,8 @@
 import io
 import time
 from collections import deque, defaultdict
+from functools import partial
+from queue import Queue
 from typing import Optional
 
 import requests
@@ -16,7 +18,8 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
     maximum_start_latency: 等待role_name服务器开启的最大询问次数
     """
     role_server_is_ready = defaultdict(bool)
-    message_hub = defaultdict(deque)
+    # TODO: 改成queue
+    message_hub = defaultdict(partial(defaultdict, deque))
 
     app = FastAPI()
 
@@ -45,14 +48,16 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
 
     @app.post("/clear")
     def clear(sender: Optional[str] = Header(None),
+              message_space: Optional[str] = Header(None),
               message_name: Optional[str] = Header(None)):
         message_id = (sender, message_name)
-        if message_hub[message_id]:
-            del message_hub[message_id]
+        if message_hub[message_space][message_id]:
+            del message_hub[message_space][message_id]
         return None
 
     @app.get("/get_responder")
     def get_responder(sender: Optional[str] = Header(None),
+                      message_space: Optional[str] = Header(None),
                       message_name: Optional[str] = Header(None)):
 
         MESSAGE_BANK = message_hub
@@ -63,7 +68,7 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
 
         if role_server_is_ready[sender]:
 
-            while not MESSAGE_BANK[message_id]:  # 消息为空，需要等待
+            while not MESSAGE_BANK[message_space][message_id]:  # 消息为空，需要等待
                 try:
                     time.sleep(alive_interval)  # 每隔几秒问一下另一个server是不是还在服务
                     requests.post(f"{role_name_url_dict[sender]}/heartbeat")
@@ -72,12 +77,14 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
                     exit()
                     raise ConnectionError(f"{sender} client has been crashed.")
 
-            if MESSAGE_BANK[message_id]:
-                file = MESSAGE_BANK[message_id].popleft()
+            if MESSAGE_BANK[message_space][message_id]:
+                file = MESSAGE_BANK[message_space][message_id].popleft()
                 return Response(content=file)
 
     @app.post("/message_sender")
     def message_sender(message_bytes: bytes = File(...),
+                       sender: Optional[str] = Header(None),
+                       message_space: Optional[str] = Header(None),
                        receiver: Optional[str] = Header(None)):
 
         if not role_server_is_ready[receiver]:  # 心跳：等待Server B启动
@@ -87,18 +94,20 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
             try:  # 在Server B启动后，如果post出错，则应把Server B挂掉
                 r = requests.post(f"{role_name_url_dict[receiver]}/message_receiver",
                                   files={'message_bytes': message_bytes},
-                                  headers={'sender': role_name,
-                                           'receiver': receiver})
+                                  headers={'sender': sender,
+                                           'message_space': message_space})
+                print({'sender': sender, 'message_space': message_space, 'receiver': receiver})
                 return {"status": 'success'}
             except Exception as e:
                 raise ConnectionError(f"{role_name} client has been crashed.")
 
     @app.post("/message_receiver")
     def message_receiver(message_bytes: bytes = File(...),
-                         sender: Optional[str] = Header(None)):
+                         sender: Optional[str] = Header(None),
+                         message_space: Optional[str] = Header(None)):
         start = time.time()
         for (message_name, single_message_bytes) in pickle.loads(message_bytes):
-            message_hub[(sender, message_name)].append(pickle.dumps(single_message_bytes))
+            message_hub[message_space][(sender, message_name)].append(pickle.dumps(single_message_bytes))
             print((sender, message_name))
 
         return {"status": 'success', 'time': time.time() - start, 'message_name': message_name}

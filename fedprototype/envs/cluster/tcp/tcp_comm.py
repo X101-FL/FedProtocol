@@ -18,6 +18,7 @@ class TCPComm(BaseComm):
         self.other_role_name_set = other_role_name_set
         # TODO: Add logger
         self.logger = None
+        self.message_space = None
 
         self.put_url = self.local_url + '/message_sender'
         self.get_url = self.local_url + '/get_responder'
@@ -26,10 +27,14 @@ class TCPComm(BaseComm):
     def _send(self, receiver: str, message_name_obj_list: List[Tuple[str, Any]]) -> None:
         requests.post(self.put_url,
                       files={'message_bytes': pickle.dumps(message_name_obj_list)},
-                      headers={'receiver': receiver})
+                      headers={'sender': self.role_name,
+                               'message-space': self.message_space,
+                               'receiver': receiver})
 
     def receive(self, sender, message_name, timeout=-1):
-        r = requests.get(self.get_url, headers={'sender': sender, 'message-name': message_name})
+        r = requests.get(self.get_url, headers={'sender': sender,
+                                                'message-space': self.message_space,
+                                                'message-name': message_name})
         return r.content
 
     # TODO: 添加watch函数
@@ -44,12 +49,16 @@ class TCPComm(BaseComm):
         pass
 
     def clear(self, sender: Optional[Sender] = None, message_name: Optional[MessageName] = None) -> None:
-        r = requests.post(self.clear_url, headers={'sender': sender, 'message-name': message_name})
+        r = requests.post(self.clear_url,
+                          headers={'sender': sender,
+                                   'message-space': self.message_space,
+                                   'message-name': message_name})
 
     def list_role_name(self, role_name_prefix: RoleNamePrefix) -> List[RoleName]:
         return [role_name for role_name in self.other_role_name_set if role_name.startswith(role_name_prefix)]
 
     def _sub_comm(self, message_space: MessageSpace) -> Comm:
+        print(f'IN SUB COMM {self.role_name}')
         comm = TCPComm(self.role_name,
                        self.local_url,
                        self.other_role_name_set)
