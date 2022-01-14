@@ -23,6 +23,7 @@ class TCPComm(BaseComm):
         self.put_url = self.local_url + '/message_sender'
         self.get_url = self.local_url + '/get_responder'
         self.clear_url = self.local_url + '/clear'
+        self.watch_url = self.local_url + '/watch'
 
     def _send(self, receiver: str, message_name_obj_list: List[Tuple[str, Any]]) -> None:
         requests.post(self.put_url,
@@ -37,10 +38,27 @@ class TCPComm(BaseComm):
                                                 'message-name': message_name})
         return r.content
 
-    # TODO: 添加watch函数
     def watch_(self, sender_message_name_tuple_list: List[Tuple[str, str]], timeout: Optional[int] = None) -> \
             Generator[Tuple[str, str, Any], None, None]:
-        pass
+        start_time = time.time()
+        while sender_message_name_tuple_list:
+            current_time = time.time()
+            if timeout and (current_time - start_time > timeout):
+                # TODO: print改成logger
+                print("TIMEOUT")
+                print("The following message was not processed:")
+                for sender, message_name in sender_message_name_tuple_list:
+                    print(f"Sender: {sender}  Message Name: {message_name}")
+                break
+            for sender, message_name in sender_message_name_tuple_list:
+                r = requests.get(self.watch_url, headers={'sender': sender,
+                                                          'message-space': self.message_space,
+                                                          'message-name': message_name})
+                if r.status_code == 404:
+                    continue
+                else:
+                    sender_message_name_tuple_list.remove((sender, message_name))
+                    yield r.content
 
     def clean(self, sender: str, receiver: str, message_name: str) -> None:
         pass

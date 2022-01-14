@@ -55,6 +55,17 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
             del message_hub[message_space][message_id]
         return None
 
+    @app.post("/watch")
+    def watch(sender: Optional[str] = Header(None),
+              message_space: Optional[str] = Header(None),
+              message_name: Optional[str] = Header(None)):
+        message_id = (sender, message_name)
+        if message_hub[message_space][message_id]:
+            file = message_hub[message_space][message_id].popleft()
+            return Response(content=file)
+        else:
+            return HTTPException(status_code=404, detail={"Still Not Found!"})
+
     @app.get("/get_responder")
     def get_responder(sender: Optional[str] = Header(None),
                       message_space: Optional[str] = Header(None),
