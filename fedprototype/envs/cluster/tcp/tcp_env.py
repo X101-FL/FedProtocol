@@ -15,8 +15,6 @@ class TCPEnv(BaseEnv):
         self.role_name_ip_dict = {}
         self.role_name_url_dict = {}
         self._default_setting()
-        print(self.logger_factory)
-
 
     def add_client(self, role_name, ip, port):
         self.role_name_ip_dict[role_name] = (ip, port)
@@ -47,7 +45,6 @@ class TCPEnv(BaseEnv):
         return ans
 
     def _default_setting(self):
-        print(123)
         self.set_logger_factory(LocalLoggerFactory)
         self.set_state_saver(LocalStateSaver())
 
@@ -64,8 +61,3 @@ class TCPEnv(BaseEnv):
                        self.role_name_url_dict[role_name],
                        set(self.role_name_url_dict) - {role_name})
         return comm
-
-    @classmethod
-    def _get_logger(cls, client: BaseClient) -> Logger:
-        pass
-

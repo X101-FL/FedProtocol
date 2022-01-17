@@ -60,12 +60,6 @@ class TCPComm(BaseComm):
                     sender_message_name_tuple_list.remove((sender, message_name))
                     yield r.content
 
-    def clean(self, sender: str, receiver: str, message_name: str) -> None:
-        pass
-
-    def get_role_name_list(self, role_name_prefix: str) -> List[str]:
-        pass
-
     def clear(self, sender: Optional[Sender] = None, message_name: Optional[MessageName] = None) -> None:
         r = requests.post(self.clear_url,
                           headers={'sender': sender,
