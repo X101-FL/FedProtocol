@@ -51,6 +51,7 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
               message_space: Optional[str] = Header(None),
               message_name: Optional[str] = Header(None)):
         message_id = (sender, message_name)
+        print(f"+++ clear: {message_hub[message_space][message_id]}")
         if message_hub[message_space][message_id]:
             del message_hub[message_space][message_id]
         return None
@@ -61,9 +62,11 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
               message_name: Optional[str] = Header(None)):
         message_id = (sender, message_name)
         if message_hub[message_space][message_id]:
+            print("-------------")
             file = message_hub[message_space][message_id].popleft()
             return Response(content=file)
         else:
+            print("+++++++++++")
             return HTTPException(status_code=404, detail={"Still Not Found!"})
 
     @app.get("/get_responder")
@@ -85,7 +88,6 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
                     requests.post(f"{role_name_url_dict[sender]}/heartbeat")
                 except Exception:
                     # exit保证进程能及时停止
-                    exit()
                     raise ConnectionError(f"{sender} client has been crashed.")
 
             if MESSAGE_BANK[message_space][message_id]:
@@ -106,8 +108,8 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
                 r = requests.post(f"{role_name_url_dict[receiver]}/message_receiver",
                                   files={'message_bytes': message_bytes},
                                   headers={'sender': sender,
-                                           'message_space': message_space})
-                print({'sender': sender, 'message_space': message_space, 'receiver': receiver})
+                                           'message-space': message_space})
+                print("^^^", {'sender': sender, 'message_space': message_space, 'receiver': receiver})
                 return {"status": 'success'}
             except Exception as e:
                 raise ConnectionError(f"{role_name} client has been crashed.")
@@ -119,7 +121,7 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
         start = time.time()
         for (message_name, single_message_bytes) in pickle.loads(message_bytes):
             message_hub[message_space][(sender, message_name)].append(pickle.dumps(single_message_bytes))
-            print((sender, message_name))
+            print("----", (sender, message_space, message_name))
 
         return {"status": 'success', 'time': time.time() - start, 'message_name': message_name}
 

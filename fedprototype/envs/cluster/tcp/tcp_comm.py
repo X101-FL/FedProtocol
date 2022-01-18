@@ -26,6 +26,7 @@ class TCPComm(BaseComm):
         self.watch_url = self.local_url + '/watch'
 
     def _send(self, receiver: str, message_name_obj_list: List[Tuple[str, Any]]) -> None:
+        print("+++++++++", self.role_name)
         requests.post(self.put_url,
                       files={'message_bytes': pickle.dumps(message_name_obj_list)},
                       headers={'sender': self.role_name,
@@ -61,6 +62,7 @@ class TCPComm(BaseComm):
                     yield r.content
 
     def clear(self, sender: Optional[Sender] = None, message_name: Optional[MessageName] = None) -> None:
+        print("-------", sender, message_name)
         r = requests.post(self.clear_url,
                           headers={'sender': sender,
                                    'message-space': self.message_space,
