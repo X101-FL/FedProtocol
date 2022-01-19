@@ -12,12 +12,12 @@ import pickle
 
 
 def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
-                 maximum_start_latency=5, beat_interval=2, alive_interval=2):
+                 maximum_start_latency=5, beat_interval=0.1, alive_interval=2):
     """
     maximum_start_latency: 等待role_name服务器开启的最大询问次数
     """
+    # TODO: 心跳sleep间隔应该小于对方程序运行时间
     role_server_is_ready = defaultdict(bool)
-    # TODO: 改成queue
     message_hub = defaultdict(partial(defaultdict, deque))
 
     app = FastAPI()
@@ -69,23 +69,24 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
     @app.get("/get_responder")
     def get_responder(sender: Optional[str] = Header(None),
                       message_space: Optional[str] = Header(None),
-                      message_name: Optional[str] = Header(None)):
+                      message_name: Optional[str] = Header(None),
+                      target_server: Optional[str] = Header(None)):
 
         MESSAGE_BANK = message_hub
         message_id = (sender, message_name)
         print("get_responder")
         print(message_id, message_space)
-        if not role_server_is_ready[sender]:  # 心跳：等待Server A启动
-            role_server_is_ready[sender] = is_server_start(sender)
+        if not role_server_is_ready[target_server]:  # 心跳：等待Server A启动
+            role_server_is_ready[target_server] = is_server_start(target_server)
 
-        if role_server_is_ready[sender]:
+        if role_server_is_ready[target_server]:
             while not MESSAGE_BANK[message_space][message_id]:  # 消息为空，需要等待
                 try:
                     time.sleep(alive_interval)  # 每隔几秒问一下另一个server是不是还在服务
-                    requests.post(f"{role_name_url_dict[sender]}/heartbeat")
+                    requests.post(f"{role_name_url_dict[target_server]}/heartbeat")
                 except Exception:
                     # exit保证进程能及时停止
-                    raise ConnectionError(f"{sender} client has been crashed.")
+                    raise ConnectionError(f"{target_server} client has been crashed.")
 
             if MESSAGE_BANK[message_space][message_id]:
                 file = MESSAGE_BANK[message_space][message_id].popleft()

@@ -28,7 +28,6 @@ class TCPComm(BaseComm):
         self.watch_url = self.local_url + '/watch'
 
     def _send(self, receiver: str, message_name_obj_list: List[Tuple[str, Any]]) -> None:
-        print("+++++++++", self.role_name)
         if receiver in self.target_server_dict:
             target_server = self.target_server_dict[receiver]
         else:
@@ -41,9 +40,14 @@ class TCPComm(BaseComm):
                                'target-server': target_server})
 
     def receive(self, sender, message_name, timeout=-1):
+        if sender in self.target_server_dict:
+            target_server = self.target_server_dict[sender]
+        else:
+            target_server = sender
         r = requests.get(self.get_url, headers={'sender': sender,
                                                 'message-space': self.message_space,
-                                                'message-name': message_name})
+                                                'message-name': message_name,
+                                                'target-server': target_server})
         return r.content
 
     def watch_(self, sender_message_name_tuple_list: List[Tuple[str, str]], timeout: Optional[int] = None) -> \

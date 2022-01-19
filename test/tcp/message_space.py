@@ -57,6 +57,10 @@ class Level1ClientA(BaseClient):
                        message_obj=f'{self.track_path}',
                        flush=True)
 
+        # 1A接收1B消息
+        message = self.comm.receive(sender='Level1B', message_name='lock_id')
+        print("1A can also receive message from 1B:", pickle.loads(message))
+
         with self.l2_client2.init():
             # MESSAGE_SPACE2下的Level2A发送Level2B一条消息
             self.l2_client2.run()
@@ -114,6 +118,12 @@ class Level1ClientB(BaseClient):
         message = self.comm.receive(sender='Level1A', message_name='who am i')
         print(f"++++++ Level1B get message : {pickle.loads(message)}")
         # self.logger.info(f"Level1B get message : {pickle.loads(message)}")
+
+        # 1B发送给1A消息
+        self.comm.send(receiver='Level1A',
+                       message_name='lock_id',
+                       message_obj='123456',
+                       flush=True)
 
         with self.l2_client2.init():
             self.l2_client2.run()
