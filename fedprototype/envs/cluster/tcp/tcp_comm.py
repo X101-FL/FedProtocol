@@ -1,4 +1,5 @@
 import time
+from collections import defaultdict
 from typing import List, Optional, Tuple, Any, Generator
 
 import requests
@@ -19,6 +20,7 @@ class TCPComm(BaseComm):
         # TODO: Add logger
         self.logger = None
         self.message_space = None
+        self.target_server_dict = dict()
 
         self.put_url = self.local_url + '/message_sender'
         self.get_url = self.local_url + '/get_responder'
@@ -27,11 +29,16 @@ class TCPComm(BaseComm):
 
     def _send(self, receiver: str, message_name_obj_list: List[Tuple[str, Any]]) -> None:
         print("+++++++++", self.role_name)
+        if receiver in self.target_server_dict:
+            target_server = self.target_server_dict[receiver]
+        else:
+            target_server = receiver
         requests.post(self.put_url,
                       files={'message_bytes': pickle.dumps(message_name_obj_list)},
                       headers={'sender': self.role_name,
                                'message-space': self.message_space,
-                               'receiver': receiver})
+                               'receiver': receiver,
+                               'target-server': target_server})
 
     def receive(self, sender, message_name, timeout=-1):
         r = requests.get(self.get_url, headers={'sender': sender,
@@ -47,7 +54,7 @@ class TCPComm(BaseComm):
             if timeout and (current_time - start_time > timeout):
                 # TODO: print改成logger
                 print("TIMEOUT")
-                print("The following message was not processed:")
+                print("Following message was not processed:")
                 for sender, message_name in sender_message_name_tuple_list:
                     print(f"Sender: {sender}  Message Name: {message_name}")
                 break
@@ -78,3 +85,11 @@ class TCPComm(BaseComm):
                        self.other_role_name_set)
         comm.message_space = message_space
         return comm
+
+    def set_target_server(self, role_rename_dict):
+        if not self.target_server_dict:
+            self.target_server_dict = role_rename_dict
+        else:
+            for k, v in self.target_server_dict:
+                if v in role_rename_dict:
+                    self.target_server_dict[k] = role_rename_dict[v]

@@ -94,9 +94,10 @@ class BaseClient(ABC):
             self._set_comm_logger(comm)
         # TODO: role_rename_dict可能不再被需要
         if role_rename_dict:
-            comm = CommRenameWrapper(self.role_name, comm, role_rename_dict)
+            comm.set_target_server(role_rename_dict)
             self._set_comm_logger(comm)
         self.comm = comm
+        self.comm.role_name = self.role_name
         return self
 
     def _set_client_logger(self) -> Client:

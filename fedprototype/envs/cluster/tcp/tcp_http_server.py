@@ -7,13 +7,12 @@ from typing import Optional
 
 import requests
 from fastapi import FastAPI, File, Header, HTTPException, Response
-from starlette.responses import StreamingResponse
 import uvicorn
 import pickle
 
 
 def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
-                 maximum_start_latency=5, beat_interval=0.1, alive_interval=0.3):
+                 maximum_start_latency=5, beat_interval=2, alive_interval=2):
     """
     maximum_start_latency: 等待role_name服务器开启的最大询问次数
     """
@@ -62,11 +61,9 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
               message_name: Optional[str] = Header(None)):
         message_id = (sender, message_name)
         if message_hub[message_space][message_id]:
-            print("-------------")
             file = message_hub[message_space][message_id].popleft()
             return Response(content=file)
         else:
-            print("+++++++++++")
             return HTTPException(status_code=404, detail={"Still Not Found!"})
 
     @app.get("/get_responder")
@@ -76,12 +73,12 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
 
         MESSAGE_BANK = message_hub
         message_id = (sender, message_name)
-
+        print("get_responder")
+        print(message_id, message_space)
         if not role_server_is_ready[sender]:  # 心跳：等待Server A启动
             role_server_is_ready[sender] = is_server_start(sender)
 
         if role_server_is_ready[sender]:
-
             while not MESSAGE_BANK[message_space][message_id]:  # 消息为空，需要等待
                 try:
                     time.sleep(alive_interval)  # 每隔几秒问一下另一个server是不是还在服务
@@ -98,19 +95,21 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
     def message_sender(message_bytes: bytes = File(...),
                        sender: Optional[str] = Header(None),
                        message_space: Optional[str] = Header(None),
-                       receiver: Optional[str] = Header(None)):
+                       receiver: Optional[str] = Header(None),
+                       target_server: Optional[str] = Header(None)):
 
-        if not role_server_is_ready[receiver]:  # 心跳：等待Server B启动
-            role_server_is_ready[receiver] = is_server_start(receiver)
+        if not role_server_is_ready[target_server]:  # 心跳：等待Server B启动
+            role_server_is_ready[target_server] = is_server_start(target_server)
 
-        if role_server_is_ready[receiver]:  # 心跳：监测另一个Server是否挂掉
+        if role_server_is_ready[target_server]:  # 心跳：监测另一个Server是否挂掉
             try:  # 在Server B启动后，如果post出错，则应把Server B挂掉
-                r = requests.post(f"{role_name_url_dict[receiver]}/message_receiver",
+                r = requests.post(f"{role_name_url_dict[target_server]}/message_receiver",
                                   files={'message_bytes': message_bytes},
                                   headers={'sender': sender,
                                            'message-space': message_space})
-                print("^^^", {'sender': sender, 'message_space': message_space, 'receiver': receiver})
-                return {"status": 'success'}
+                print("^^^",
+                      {'sender': sender, 'message_space': message_space, 'receiver': receiver, 'target': target_server})
+                return {"status": r.status_code}
             except Exception as e:
                 raise ConnectionError(f"{role_name} client has been crashed.")
 
