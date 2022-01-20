@@ -65,7 +65,7 @@ class Level1ClientA(BaseClient):
             # MESSAGE_SPACE2下的Level2A发送Level2B一条消息
             self.l2_client2.run()
 
-        seconds = 3
+        seconds = 1
         print(f"Wait {seconds} seconds to finish Level1A run")
         time.sleep(seconds)
 
@@ -84,7 +84,7 @@ class Level2ClientB(BaseClient):
 
     def close(self) -> None:
         # self.logger.info("clear comm")
-        print("clear comm.......")
+        print("clear comm message.......")
         self.comm.clear('Level2A', 'who am i')
 
 

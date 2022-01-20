@@ -16,7 +16,6 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
     """
     maximum_start_latency: 等待role_name服务器开启的最大询问次数
     """
-    # TODO: 心跳sleep间隔应该小于对方程序运行时间
     role_server_is_ready = defaultdict(bool)
     message_hub = defaultdict(partial(defaultdict, deque))
 
@@ -28,19 +27,19 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
 
         for i in range(maximum_start_latency + 1):
             print(f"{time.time() - start:.0f}s passed, still waiting for the {server_name} server to start")
-            one_alive_test(server_name, i)
-            return True
-
+            if one_alive_test(server_name, i):
+                return True
 
     def one_alive_test(server_name, cnt):
         """心跳机制：等待server_name服务器开启"""
         try:
             requests.post(f"{role_name_url_dict[server_name]}/heartbeat")
-            print(f"Server {server_name} has been running.")
+            # print(f"Server {server_name} has been running.")
             return True
         except Exception:
             if cnt < maximum_start_latency:
                 time.sleep(beat_interval)
+                return False
             else:
                 print("Reach Max Call Time. Exit process.")
                 raise ConnectionError(
@@ -56,7 +55,6 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
               message_space: Optional[str] = Header(None),
               message_name: Optional[str] = Header(None)):
         message_id = (sender, message_name)
-        print(f"+++ clear: {message_hub[message_space][message_id]}")
         if message_hub[message_space][message_id]:
             del message_hub[message_space][message_id]
         return None
@@ -80,20 +78,16 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
 
         MESSAGE_BANK = message_hub
         message_id = (sender, message_name)
-        print("get_responder")
-        print(message_id, message_space)
 
         cnt = 0
         start = time.time()
 
         while not MESSAGE_BANK[message_space][message_id]:  # 消息为空，需要等待
-            print("00000000000")
-            print(f"{time.time() - start:.0f}s passed, still waiting for the {target_server} server to start")
-            one_alive_test(target_server, cnt)
-            role_server_is_ready[target_server] = True
+            if not role_server_is_ready[target_server]:
+                print(f"{time.time() - start:.0f}s passed, still waiting for the {target_server} server to start")
+            role_server_is_ready[target_server] = one_alive_test(target_server, cnt)
             cnt += 1
-            time.sleep(5)
-            print(f"Server {target_server} has been running.")
+            time.sleep(alive_interval)  # 等另一方sender消息的间隔
 
         if MESSAGE_BANK[message_space][message_id]:
             file = MESSAGE_BANK[message_space][message_id].popleft()
@@ -107,7 +101,10 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
                        target_server: Optional[str] = Header(None)):
 
         if not role_server_is_ready[target_server]:  # 心跳：等待Server B启动
-            role_server_is_ready[target_server] = is_server_start(target_server)
+            try:
+                role_server_is_ready[target_server] = is_server_start(target_server)
+            except:
+                return HTTPException(status_code=502, detail={"Still Not Found!"})
 
         if role_server_is_ready[target_server]:  # 心跳：监测另一个Server是否挂掉
             try:  # 在Server B启动后，如果post出错，则应把Server B挂掉
@@ -115,7 +112,7 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
                                   files={'message_bytes': message_bytes},
                                   headers={'sender': sender,
                                            'message-space': message_space})
-                print("^^^",
+                print(">>>",
                       {'sender': sender, 'message_space': message_space, 'receiver': receiver, 'target': target_server})
                 return {"status": r.status_code}
             except Exception as e:
@@ -128,7 +125,7 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
         start = time.time()
         for (message_name, single_message_bytes) in pickle.loads(message_bytes):
             message_hub[message_space][(sender, message_name)].append(pickle.dumps(single_message_bytes))
-            print("----", (sender, message_space, message_name))
+            print("--+--", (sender, message_space, message_name))
 
         return {"status": 'success', 'time': time.time() - start, 'message_name': message_name}
 

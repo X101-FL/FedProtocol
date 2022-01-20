@@ -1,6 +1,7 @@
 import time
 from collections import defaultdict
 from typing import List, Optional, Tuple, Any, Generator
+import traceback
 
 import requests
 
@@ -32,12 +33,18 @@ class TCPComm(BaseComm):
             target_server = self.target_server_dict[receiver]
         else:
             target_server = receiver
-        requests.post(self.put_url,
-                      files={'message_bytes': pickle.dumps(message_name_obj_list)},
-                      headers={'sender': self.role_name,
-                               'message-space': self.message_space,
-                               'receiver': receiver,
-                               'target-server': target_server})
+        r = requests.post(self.put_url,
+                          files={'message_bytes': pickle.dumps(message_name_obj_list)},
+                          headers={'sender': self.role_name,
+                                   'message-space': self.message_space,
+                                   'receiver': receiver,
+                                   'target-server': target_server})
+        try:
+            http_code = r.json()['status_code']  # 这行可能报错：不一定会返回HTTPException
+            if http_code == 502:
+                raise ConnectionError("message_sender error")
+        except:
+            pass
 
     def receive(self, sender, message_name, timeout=-1):
         if sender in self.target_server_dict:
@@ -66,7 +73,7 @@ class TCPComm(BaseComm):
                 r = requests.get(self.watch_url, headers={'sender': sender,
                                                           'message-space': self.message_space,
                                                           'message-name': message_name})
-                if r.status_code == 404:
+                if r.json()['status_code'] == 404:
                     continue
                 else:
                     sender_message_name_tuple_list.remove((sender, message_name))
