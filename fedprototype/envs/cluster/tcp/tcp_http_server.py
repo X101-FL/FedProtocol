@@ -12,7 +12,7 @@ import pickle
 
 
 def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
-                 maximum_start_latency=5, beat_interval=0.1, alive_interval=2):
+                 maximum_start_latency=5, beat_interval=2, alive_interval=2):
     """
     maximum_start_latency: 等待role_name服务器开启的最大询问次数
     """
@@ -27,19 +27,25 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
         start = time.time()
 
         for i in range(maximum_start_latency + 1):
-            try:
-                print(f"{time.time() - start:.0f}s passed, still waiting for the {server_name} server to start")
-                requests.post(f"{role_name_url_dict[server_name]}/heartbeat")
-                print(f"Server {server_name} has been running.")
-                return True
-            except Exception:
-                if i < maximum_start_latency:
-                    time.sleep(beat_interval)
-                else:
-                    print("Reach Max Call Time. Exit process.")
-                    raise ConnectionError(
-                        f"{role_name} client has call {maximum_start_latency} times,"
-                        f"but {server_name} service still not starts")
+            print(f"{time.time() - start:.0f}s passed, still waiting for the {server_name} server to start")
+            one_alive_test(server_name, i)
+            return True
+
+
+    def one_alive_test(server_name, cnt):
+        """心跳机制：等待server_name服务器开启"""
+        try:
+            requests.post(f"{role_name_url_dict[server_name]}/heartbeat")
+            print(f"Server {server_name} has been running.")
+            return True
+        except Exception:
+            if cnt < maximum_start_latency:
+                time.sleep(beat_interval)
+            else:
+                print("Reach Max Call Time. Exit process.")
+                raise ConnectionError(
+                    f"{role_name} client has call {maximum_start_latency} times,"
+                    f"but {server_name} service still not starts")
 
     @app.post("/heartbeat")
     def heartbeat():
@@ -76,21 +82,22 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
         message_id = (sender, message_name)
         print("get_responder")
         print(message_id, message_space)
-        if not role_server_is_ready[target_server]:  # 心跳：等待Server A启动
-            role_server_is_ready[target_server] = is_server_start(target_server)
 
-        if role_server_is_ready[target_server]:
-            while not MESSAGE_BANK[message_space][message_id]:  # 消息为空，需要等待
-                try:
-                    time.sleep(alive_interval)  # 每隔几秒问一下另一个server是不是还在服务
-                    requests.post(f"{role_name_url_dict[target_server]}/heartbeat")
-                except Exception:
-                    # exit保证进程能及时停止
-                    raise ConnectionError(f"{target_server} client has been crashed.")
+        cnt = 0
+        start = time.time()
 
-            if MESSAGE_BANK[message_space][message_id]:
-                file = MESSAGE_BANK[message_space][message_id].popleft()
-                return Response(content=file)
+        while not MESSAGE_BANK[message_space][message_id]:  # 消息为空，需要等待
+            print("00000000000")
+            print(f"{time.time() - start:.0f}s passed, still waiting for the {target_server} server to start")
+            one_alive_test(target_server, cnt)
+            role_server_is_ready[target_server] = True
+            cnt += 1
+            time.sleep(5)
+            print(f"Server {target_server} has been running.")
+
+        if MESSAGE_BANK[message_space][message_id]:
+            file = MESSAGE_BANK[message_space][message_id].popleft()
+            return Response(content=file)
 
     @app.post("/message_sender")
     def message_sender(message_bytes: bytes = File(...),
