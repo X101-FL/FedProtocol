@@ -146,8 +146,12 @@ if __name__ == '__main__':
         client = Level1ClientB()
 
     TCPEnv() \
-        .add_client(role_name='Level1A', ip="127.0.0.1", port=5601) \
-        .add_client(role_name='Level1B', ip="127.0.0.1", port=5602) \
+        .add_client(role_name='Level1A', host="127.0.0.1", port=5601) \
+        .add_client(role_name='Level1B', host="127.0.0.1", port=5602) \
         .run(client=client)
 
     print("-----> Finish TCP task.")
+
+# cd test/tcp
+# python message_space.py --role Level1A
+# python message_space.py --role Level1B

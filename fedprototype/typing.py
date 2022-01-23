@@ -24,17 +24,29 @@ MessageName = str
 MessageID = typing.Tuple[Sender, Receiver, MessageName]
 MessageObj = typing.Any
 StateDict = typing.Dict[str, typing.Any]
-Client = 'BaseClient'
-Comm = 'BaseComm'
-Env = 'BaseEnv'
+# Client = 'BaseClient'
+# Comm = 'BaseComm'
+# Env = 'BaseEnv'
+
+# StateKey = str
+# StateSaver = 'BaseStateSaver'
+# LoggerFactory = 'BaseLoggerFactory'
+
+Client = typing.TypeVar('Client', bound='BaseClient')
+Comm = typing.TypeVar('Comm', bound='BaseComm')
+Env = typing.TypeVar('Env', bound='BaseEnv')
 
 StateKey = str
-StateSaver = 'BaseStateSaver'
-LoggerFactory = 'BaseLoggerFactory'
+StateSaver = typing.TypeVar('StateSaver', bound='BaseStateSaver')
+LoggerFactory = typing.TypeVar('LoggerFactory', bound='BaseLoggerFactory')
 
 FileDir = str  # 文件夹路径
 FileName = str  # 单纯文件名，不带文件路径
 FilePath = str  # 完整文件路径，文件夹路径 + 文件名
+
+Host = str
+Port = int
+Url = str
 
 __all__ = ['RoleName',
            'RoleNamePrefix',
@@ -57,4 +69,7 @@ __all__ = ['RoleName',
            'Logger',
            'FileDir',
            'FileName',
-           'FilePath']
+           'FilePath',
+           'Host',
+           'Port',
+           'Url']

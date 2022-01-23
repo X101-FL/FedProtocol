@@ -72,8 +72,8 @@ if __name__ == '__main__':
         client = PassiveClient('passive')
 
     TCPEnv() \
-        .add_client(role_name='active', ip="127.0.0.1", port=6060) \
-        .add_client(role_name='passive', ip="127.0.0.1", port=7070) \
+        .add_client(role_name='active', host="127.0.0.1", port=6060) \
+        .add_client(role_name='passive', host="127.0.0.1", port=7070) \
         .run(client=client)
 
     print("Finish TCP task")

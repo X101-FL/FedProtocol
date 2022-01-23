@@ -1,9 +1,19 @@
 from abc import ABC
-from typing import Any, Optional, Dict, Union
+from typing import Any, Dict, Optional, Union
 
-from fedprototype.tools.comm_wrapper import CommRenameWrapper
-from fedprototype.typing import Comm, Logger, RoleName, SubRoleName, UpperRoleName, \
-    Client, TrackPath, Env, MessageSpace, StateKey, StateDict
+from fedprototype.typing import (
+    Client,
+    Comm,
+    Env,
+    Logger,
+    MessageSpace,
+    RoleName,
+    StateDict,
+    StateKey,
+    SubRoleName,
+    TrackPath,
+    UpperRoleName,
+)
 
 
 class BaseClient(ABC):
@@ -32,6 +42,7 @@ class BaseClient(ABC):
             ._set_env(self.env) \
             ._set_track_path(self) \
             ._set_comm(self, message_space, role_rename_dict) \
+            ._set_comm_logger() \
             ._set_client_logger()
 
     def checkpoint(self,
@@ -86,27 +97,22 @@ class BaseClient(ABC):
     def _set_comm(self,
                   upper_client: Client,
                   message_space: Optional[MessageSpace] = None,
-                  role_rename_dict: Optional[Dict[SubRoleName, UpperRoleName]] = None
+                  role_rename_dict: Optional[Dict[SubRoleName,
+                                                  UpperRoleName]] = None
                   ) -> Client:
-        comm = upper_client.comm
-        if message_space:
-            comm = comm._sub_comm(message_space)  # 这里调用了私有函数，这个函数不应该声明为公有函数（对用户隐藏），IDE可能会报警告，但是没关系
-            self._set_comm_logger(comm)
-        if role_rename_dict:
-            comm.set_target_server(role_rename_dict)
-            self._set_comm_logger(comm)
-        self.comm = comm
-        self.comm.role_name = self.role_name
+
+        self.comm = upper_client.comm._sub_comm(message_space,
+                                                role_rename_dict)
         return self
 
     def _set_client_logger(self) -> Client:
         self.logger = self.env.logger_factory.get_logger(self.track_path)
         return self
 
-    def _set_comm_logger(self, comm: Optional[Comm] = None) -> None:
-        if comm is None:
-            comm = self.comm
-        comm.logger = self.env.logger_factory.get_logger(f"{self.track_path} [{comm.__class__.__name__}]")
+    def _set_comm_logger(self) -> Client:
+        self.comm.logger = self.env.logger_factory.get_logger(
+            f"{self.track_path} [{self.comm.__class__.__name__}]")
+        return self
 
     def __enter__(self) -> Client:
         return self

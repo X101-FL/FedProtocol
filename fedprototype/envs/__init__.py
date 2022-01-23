@@ -1,3 +1,3 @@
 from .local.local_env import LocalEnv
-
-__all__ = ['LocalEnv']
+from .cluster.tcp import TCPEnv
+__all__ = ['LocalEnv', 'TCPEnv']

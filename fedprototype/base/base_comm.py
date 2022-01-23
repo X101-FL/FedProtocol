@@ -1,9 +1,21 @@
 import copy
-from typing import DefaultDict, List, Tuple, Optional, Generator
-from fedprototype.typing import MessageName, MessageObj, Receiver, \
-    Sender, RoleName, RoleNamePrefix, Comm, MessageSpace, Logger
 from abc import ABC, abstractmethod
 from collections import defaultdict
+from typing import DefaultDict, Dict, Generator, List, Optional, Tuple
+
+from fedprototype.typing import (
+    Comm,
+    Logger,
+    MessageName,
+    MessageObj,
+    MessageSpace,
+    Receiver,
+    RoleName,
+    RoleNamePrefix,
+    Sender,
+    SubRoleName,
+    UpperRoleName
+)
 
 _MESSAGE_BUFFER = DefaultDict[Receiver, List[Tuple[MessageName, MessageObj]]]
 
@@ -11,7 +23,7 @@ _MESSAGE_BUFFER = DefaultDict[Receiver, List[Tuple[MessageName, MessageObj]]]
 class BaseComm(ABC):
 
     def __init__(self):
-        self._message_buffer: _MESSAGE_BUFFER = defaultdict(lambda: [])
+        self._message_buffer: _MESSAGE_BUFFER = defaultdict(list)
         self.logger: Optional[Logger] = None
 
     def send(self, receiver: Receiver, message_name: MessageName, message_obj: MessageObj, flush: bool = True) -> None:
@@ -44,7 +56,8 @@ class BaseComm(ABC):
               timeout: Optional[int] = None
               ) -> Generator[Tuple[Sender, MessageName, MessageObj], None, None]:
         sender_list = self.list_role_name(sender_prefix)
-        sender_message_name_tuple_list = [(sender, message_name) for sender in sender_list]
+        sender_message_name_tuple_list = [
+            (sender, message_name) for sender in sender_list]
         return self.watch_(sender_message_name_tuple_list, timeout)
 
     @abstractmethod
@@ -63,7 +76,11 @@ class BaseComm(ABC):
         pass
 
     @abstractmethod
-    def _sub_comm(self, message_space: MessageSpace) -> Comm:
+    def _sub_comm(self,
+                  message_space: Optional[MessageSpace] = None,
+                  role_rename_dict: Optional[Dict[SubRoleName,
+                                                  UpperRoleName]] = None
+                  ) -> Comm:
         pass
 
     @abstractmethod

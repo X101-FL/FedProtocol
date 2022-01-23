@@ -1,22 +1,23 @@
-import io
 import time
 from collections import deque, defaultdict
 from functools import partial
-from queue import Queue
-from typing import Optional
+from typing import Optional, Set, Dict
 
 import requests
 from fastapi import FastAPI, File, Header, HTTPException, Response
 import uvicorn
 import pickle
+from fedprototype.typing import RoleName, Url, Host, Port
 
 
-def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
-                 maximum_start_latency=5, beat_interval=2, alive_interval=2):
-    """
-    maximum_start_latency: 等待role_name服务器开启的最大询问次数
-    """
-    role_server_is_ready = defaultdict(bool)
+def start_server(host: Host, port: Port,
+                 role_name_url_dict: Dict[RoleName, Url],
+                 maximum_start_latency=5,
+                 beat_interval=2,
+                 alive_interval=2):
+    url_role_name_dict: Dict[Url, RoleName] = {v: k for k, v
+                                               in role_name_url_dict.items()}
+    role_server_is_ready:Dict[RoleName,bool] = defaultdict(bool)
     message_hub = defaultdict(partial(defaultdict, deque))
 
     app = FastAPI()
@@ -26,7 +27,8 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
         start = time.time()
 
         for i in range(maximum_start_latency + 1):
-            print(f"{time.time() - start:.0f}s passed, still waiting for the {server_name} server to start")
+            print(
+                f"{time.time() - start:.0f}s passed, still waiting for the {server_name} server to start")
             if one_alive_test(server_name, i):
                 return True
 
@@ -84,8 +86,10 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
 
         while not MESSAGE_BANK[message_space][message_id]:  # 消息为空，需要等待
             if not role_server_is_ready[target_server]:
-                print(f"{time.time() - start:.0f}s passed, still waiting for the {target_server} server to start")
-            role_server_is_ready[target_server] = one_alive_test(target_server, cnt)
+                print(
+                    f"{time.time() - start:.0f}s passed, still waiting for the {target_server} server to start")
+            role_server_is_ready[target_server] = one_alive_test(
+                target_server, cnt)
             cnt += 1
             time.sleep(alive_interval)  # 等另一方sender消息的间隔
 
@@ -102,7 +106,8 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
 
         if not role_server_is_ready[target_server]:  # 心跳：等待Server B启动
             try:
-                role_server_is_ready[target_server] = is_server_start(target_server)
+                role_server_is_ready[target_server] = is_server_start(
+                    target_server)
             except:
                 return HTTPException(status_code=502, detail={"Still Not Found!"})
 
@@ -124,16 +129,19 @@ def start_server(role_name_url_dict, role_name, host="127.0.0.1", port=8081,
                          message_space: Optional[str] = Header(None)):
         start = time.time()
         for (message_name, single_message_bytes) in pickle.loads(message_bytes):
-            message_hub[message_space][(sender, message_name)].append(pickle.dumps(single_message_bytes))
+            message_hub[message_space][(sender, message_name)].append(
+                pickle.dumps(single_message_bytes))
             print("--+--", (sender, message_space, message_name))
 
         return {"status": 'success', 'time': time.time() - start, 'message_name': message_name}
 
-    log_config = uvicorn.config.LOGGING_CONFIG  # https://www.uvicorn.org/settings/#logging
+    # https://www.uvicorn.org/settings/#logging
+    log_config = uvicorn.config.LOGGING_CONFIG
     log_config["formatters"]["default"]["fmt"] = "FastAPI %(levelname)s: %(message)s"
     log_config["formatters"]["access"]["fmt"] = "[FastAPI %(levelname)s] %(asctime)s --> (%(message)s)"
     log_config["formatters"]["access"]["datefmt"] = "%Y-%m-%d %H:%M:%S"
-    uvicorn.run(app=app, host=host, port=port, debug=True, access_log=True, log_level='info', use_colors=True)
+    uvicorn.run(app=app, host=host, port=port, debug=True,
+                access_log=True, log_level='info', use_colors=True)
 
 
 if __name__ == "__main__":
