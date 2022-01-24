@@ -1,117 +1,85 @@
+from socket import timeout
 import time
 from collections import deque, defaultdict
 from functools import partial
-from typing import Optional, Set, Dict
+from typing import Optional, Set, Dict, Tuple, Any
+from crypten import log
 
 import requests
-from fastapi import FastAPI, File, Header, HTTPException, Response
+from requests.exceptions import RequestException
+from fastapi import FastAPI, File,  HTTPException, Response, Body, Form
 import uvicorn
 import pickle
-from fedprototype.typing import RoleName, Url, Host, Port
+from fedprototype.envs.local.message_hub import MessageHub
+from fedprototype.typing import MessageName, MessageSpace, RoleName, Sender, Url, Host, Port, MessageID
+import logging
 
 
 def start_server(host: Host, port: Port,
                  role_name_url_dict: Dict[RoleName, Url],
-                 maximum_start_latency=5,
-                 beat_interval=2,
-                 alive_interval=2):
+                 maximum_start_latency: int = 5,
+                 beat_interval: int = 2,
+                 alive_interval: int = 2):
     url_role_name_dict: Dict[Url, RoleName] = {v: k for k, v
                                                in role_name_url_dict.items()}
-    role_server_is_ready:Dict[RoleName,bool] = defaultdict(bool)
-    message_hub = defaultdict(partial(defaultdict, deque))
+    target_server_is_ready: Dict[RoleName, bool] = defaultdict(bool)
+    message_hub: Dict[MessageSpace, Dict[MessageID, deque]] = \
+        defaultdict(partial(defaultdict, deque))
 
     app = FastAPI()
-
-    def is_server_start(server_name):
-        """心跳机制：等待server_name服务器开启"""
-        start = time.time()
-
-        for i in range(maximum_start_latency + 1):
-            print(
-                f"{time.time() - start:.0f}s passed, still waiting for the {server_name} server to start")
-            if one_alive_test(server_name, i):
-                return True
-
-    def one_alive_test(server_name, cnt):
-        """心跳机制：等待server_name服务器开启"""
-        try:
-            requests.post(f"{role_name_url_dict[server_name]}/heartbeat")
-            # print(f"Server {server_name} has been running.")
-            return True
-        except Exception:
-            if cnt < maximum_start_latency:
-                time.sleep(beat_interval)
-                return False
-            else:
-                print("Reach Max Call Time. Exit process.")
-                raise ConnectionError(
-                    f"{role_name} client has call {maximum_start_latency} times,"
-                    f"but {server_name} service still not starts")
+    logger = logging.getLogger("comm_server")
 
     @app.post("/heartbeat")
     def heartbeat():
-        return None
+        return 0
 
-    @app.post("/clear")
-    def clear(sender: Optional[str] = Header(None),
-              message_space: Optional[str] = Header(None),
-              message_name: Optional[str] = Header(None)):
-        message_id = (sender, message_name)
-        if message_hub[message_space][message_id]:
-            del message_hub[message_space][message_id]
-        return None
+    # @app.post("/clear")
+    # def clear(sender: Optional[str] = Header(None),
+    #           message_space: Optional[str] = Header(None),
+    #           message_name: Optional[str] = Header(None)):
+    #     message_id = (sender, message_name)
+    #     if message_hub[message_space][message_id]:
+    #         del message_hub[message_space][message_id]
+    #     return None
 
-    @app.post("/watch")
-    def watch(sender: Optional[str] = Header(None),
-              message_space: Optional[str] = Header(None),
-              message_name: Optional[str] = Header(None)):
-        message_id = (sender, message_name)
-        if message_hub[message_space][message_id]:
-            file = message_hub[message_space][message_id].popleft()
-            return Response(content=file)
-        else:
-            return HTTPException(status_code=404, detail={"Still Not Found!"})
+    # @app.post("/watch")
+    # def watch(sender: Optional[str] = Header(None),
+    #           message_space: Optional[str] = Header(None),
+    #           message_name: Optional[str] = Header(None)):
+    #     message_id = (sender, message_name)
+    #     if message_hub[message_space][message_id]:
+    #         file = message_hub[message_space][message_id].popleft()
+    #         return Response(content=file)
+    #     else:
+    #         return HTTPException(status_code=404, detail={"Still Not Found!"})
 
-    @app.get("/get_responder")
-    def get_responder(sender: Optional[str] = Header(None),
-                      message_space: Optional[str] = Header(None),
-                      message_name: Optional[str] = Header(None),
-                      target_server: Optional[str] = Header(None)):
+    @app.get("/receive")
+    def receive(message_space: str = Body(...),
+                sender: str = Body(...),
+                receiver: str = Body(...),
+                message_name: str = Body(...),
+                target_server: str = Body(...)):
+        _wait_for_server_started(target_server)
 
-        MESSAGE_BANK = message_hub
-        message_id = (sender, message_name)
+        message_id = (sender, receiver, message_name)
 
-        cnt = 0
-        start = time.time()
+        while not message_hub[message_space][message_id]:  # 消息为空，需要等待
+            _assert_server_alived(target_server)
+            logger.debug(f"waiting for messsage {message_space}#{message_id}")
+            time.sleep(alive_interval)
 
-        while not MESSAGE_BANK[message_space][message_id]:  # 消息为空，需要等待
-            if not role_server_is_ready[target_server]:
-                print(
-                    f"{time.time() - start:.0f}s passed, still waiting for the {target_server} server to start")
-            role_server_is_ready[target_server] = one_alive_test(
-                target_server, cnt)
-            cnt += 1
-            time.sleep(alive_interval)  # 等另一方sender消息的间隔
+        message_bytes = message_hub[message_space][message_id].popleft()
+        return Response(content=message_bytes)
 
-        if MESSAGE_BANK[message_space][message_id]:
-            file = MESSAGE_BANK[message_space][message_id].popleft()
-            return Response(content=file)
+    @app.post("/send")
+    def send(message_bytes: bytes = File(...),
+             message_space: str = Form(...),
+             sender: str = Form(...),
+             receiver: str = Form(...),
+             target_server: str = Form(...)):
+        _wait_for_server_started()
 
-    @app.post("/message_sender")
-    def message_sender(message_bytes: bytes = File(...),
-                       sender: Optional[str] = Header(None),
-                       message_space: Optional[str] = Header(None),
-                       receiver: Optional[str] = Header(None),
-                       target_server: Optional[str] = Header(None)):
-
-        if not role_server_is_ready[target_server]:  # 心跳：等待Server B启动
-            try:
-                role_server_is_ready[target_server] = is_server_start(
-                    target_server)
-            except:
-                return HTTPException(status_code=502, detail={"Still Not Found!"})
-
-        if role_server_is_ready[target_server]:  # 心跳：监测另一个Server是否挂掉
+        if target_server_is_ready[target_server]:  # 心跳：监测另一个Server是否挂掉
             try:  # 在Server B启动后，如果post出错，则应把Server B挂掉
                 r = requests.post(f"{role_name_url_dict[target_server]}/message_receiver",
                                   files={'message_bytes': message_bytes},
@@ -134,6 +102,71 @@ def start_server(host: Host, port: Port,
             print("--+--", (sender, message_space, message_name))
 
         return {"status": 'success', 'time': time.time() - start, 'message_name': message_name}
+
+    # def is_server_start(server_name):
+    #     """心跳机制：等待server_name服务器开启"""
+    #     start = time.time()
+
+    #     for i in range(maximum_start_latency + 1):
+    #         print(
+    #             f"{time.time() - start:.0f}s passed, still waiting for the {server_name} server to start")
+    #         if one_alive_test(server_name, i):
+    #             return True
+
+    # def one_alive_test(server_name, cnt):
+    #     """心跳机制：等待server_name服务器开启"""
+    #     try:
+    #         requests.post(f"{role_name_url_dict[server_name]}/heartbeat")
+    #         # print(f"Server {server_name} has been running.")
+    #         return True
+    #     except Exception:
+    #         if cnt < maximum_start_latency:
+    #             time.sleep(beat_interval)
+    #             return False
+    #         else:
+    #             print("Reach Max Call Time. Exit process.")
+    #             raise ConnectionError(
+    #                 f"{role_name} client has call {maximum_start_latency} times,"
+    #                 f"but {server_name} service still not starts")
+
+    def _wait_for_server_started(target_server: Url):
+        target_role_name = url_role_name_dict[target_server]
+        for i in range(maximum_start_latency):
+
+            if target_server_is_ready[target_role_name]:
+                return
+
+            try:
+                _assert_server_alived(target_server)
+                target_server_is_ready[target_role_name] = True
+                return
+            except RequestException as e:
+                pass
+
+            logging.debug(
+                f"wait for server started <{i+1}/{maximum_start_latency}> {target_role_name}:{target_server}")
+            time.sleep(beat_interval)
+
+        raise e
+
+    def _assert_server_alived(target_server: Url):
+        target_role_name = url_role_name_dict[target_server]
+        logging.debug(
+            f"test for server alived {target_role_name}:{target_server}")
+        res = requests.post(f"{target_server}/heartbeat")
+        if res.status_code == 200:
+            logging.debug(
+                f"server {target_role_name}:{target_server} is alived")
+        else:
+            raise RequestException(request=res.request, response=res)
+
+    def _post(*args, **kwargs) -> Any:
+        res = requests.post(*args, **kwargs)
+        if res.status_code != 200:
+            raise RequestException(request=res.request, response=res)
+        if res.headers.get('content-type', None) == 'application/json':
+            return res.json()
+        return res.content
 
     # https://www.uvicorn.org/settings/#logging
     log_config = uvicorn.config.LOGGING_CONFIG

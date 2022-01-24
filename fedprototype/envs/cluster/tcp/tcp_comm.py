@@ -41,20 +41,21 @@ class TCPComm(BaseComm):
         self._assert_role_name(receiver=receiver)
 
         self._post(url=self._send_url,
-                   data={'sender': self.role_name,
-                         'message_space': self.message_space,
+                   data={'message_space': self.message_space,
+                         'sender': self.role_name,
                          'receiver': receiver,
-                         'target_url': self.role_name_url_dict[receiver]},
+                         'target_server': self.role_name_url_dict[receiver]},
                    files={'message_bytes': pickle.dumps(message_package)})
 
     def receive(self, sender: Sender, message_name: MessageName, timeout: Optional[int] = None) -> MessageObj:
         self._assert_role_name(sender=sender)
 
         return self._post(url=self._receive_url,
-                          json={'sender': sender,
-                                'message_space': self.message_space,
+                          json={'message_space': self.message_space,
+                                'sender': sender,
+                                'receiver': self.role_name,
                                 'message_name': message_name,
-                                'target_url': self.role_name_url_dict[sender]},
+                                'target_server': self.role_name_url_dict[sender]},
                           timeout=timeout)
 
     def watch_(self, sender_message_name_tuple_list: List[Tuple[Sender, MessageName]], timeout: Optional[int] = None) -> Generator[Tuple[Sender, MessageName, MessageObj], None, None]:
