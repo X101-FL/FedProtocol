@@ -3,31 +3,27 @@ import time
 from collections import deque, defaultdict
 from functools import partial
 from typing import Optional, Set, Dict, Tuple, Any
-from crypten import log
 
 import requests
 from requests.exceptions import RequestException
 from fastapi import FastAPI, File,  HTTPException, Response, Body, Form
 import uvicorn
 import pickle
-from fedprototype.envs.local.message_hub import MessageHub
-from fedprototype.typing import MessageName, MessageSpace, RoleName, Sender, Url, Host, Port, MessageID
+from fedprototype.typing import MessageName, MessageSpace, RoleName, RootRoleName, Sender, Url, Host, Port, MessageID
 import logging
+from fedprototype.envs.cluster.tcp.message_hub import MessageHub, MessageSpaceManager
 
 
 def start_server(host: Host, port: Port,
-                 role_name_url_dict: Dict[RoleName, Url],
+                 root_role_name_url_dict: Dict[RootRoleName, Url],
                  maximum_start_latency: int = 5,
                  beat_interval: int = 2,
                  alive_interval: int = 2):
-    url_role_name_dict: Dict[Url, RoleName] = {v: k for k, v
-                                               in role_name_url_dict.items()}
-    target_server_is_ready: Dict[RoleName, bool] = defaultdict(bool)
-    message_hub: Dict[MessageSpace, Dict[MessageID, deque]] = \
-        defaultdict(partial(defaultdict, deque))
+    target_server_is_ready: Dict[RootRoleName, bool] = defaultdict(bool)
+    url_root_role_name_dict = {v: k for k, v in root_role_name_url_dict}
+    message_hub: MessageHub = MessageHub(root_role_name_url_dict)
 
     app = FastAPI()
-    logger = logging.getLogger("comm_server")
 
     @app.post("/heartbeat")
     def heartbeat():
@@ -53,15 +49,30 @@ def start_server(host: Host, port: Port,
     #     else:
     #         return HTTPException(status_code=404, detail={"Still Not Found!"})
 
-    @app.get("/receive")
+    @app.post("/set_message_space")
+    def set_message_space(message_space: MessageSpace = Body(...),
+                          role_name_to_root_dict: Dict[RoleName, RootRoleName] = Body(...)):
+        print("server : set_message_space", message_space, role_name_to_root_dict)
+        message_hub.set_message_space_url(message_space, role_name_to_root_dict)
+        return 0
+
+    @app.post("/receive")
     def receive(message_space: str = Body(...),
                 sender: str = Body(...),
                 receiver: str = Body(...),
-                message_name: str = Body(...),
-                target_server: str = Body(...)):
-        _wait_for_server_started(target_server)
+                message_name: str = Body(...)):
+        message_space_manager = message_hub.get_message_space_manager(message_space)
+        message_queue = message_space_manager.get_message_queue(sender,receiver,message_name)
+        target_server_url = message_space_manager.role_name_url_dict[receiver]
 
-        message_id = (sender, receiver, message_name)
+        while message_queue.empty():
+            
+        if not message_queue.empty():
+            
+        
+        _wait_for_server_started(target_server_url)
+
+        
 
         while not message_hub[message_space][message_id]:  # 消息为空，需要等待
             _assert_server_alived(target_server)
@@ -72,36 +83,30 @@ def start_server(host: Host, port: Port,
         return Response(content=message_bytes)
 
     @app.post("/send")
-    def send(message_bytes: bytes = File(...),
+    def send(message_package_bytes: bytes = File(...),
              message_space: str = Form(...),
              sender: str = Form(...),
-             receiver: str = Form(...),
-             target_server: str = Form(...)):
-        _wait_for_server_started()
+             receiver: str = Form(...)):
+        message_space_manager = message_hub.get_message_space_manager(message_space)
+        target_server_url = message_space_manager.role_name_url_dict[receiver]
+        _wait_for_server_started(target_server_url)
 
-        if target_server_is_ready[target_server]:  # 心跳：监测另一个Server是否挂掉
-            try:  # 在Server B启动后，如果post出错，则应把Server B挂掉
-                r = requests.post(f"{role_name_url_dict[target_server]}/message_receiver",
-                                  files={'message_bytes': message_bytes},
-                                  headers={'sender': sender,
-                                           'message-space': message_space})
-                print(">>>",
-                      {'sender': sender, 'message_space': message_space, 'receiver': receiver, 'target': target_server})
-                return {"status": r.status_code}
-            except Exception as e:
-                raise ConnectionError(f"{role_name} client has been crashed.")
+        _post(f"{target_server_url}/put_",
+              data={'message_space': message_space,
+                    'sender': sender,
+                    'receiver': receiver},
+              files={'message_package_bytes': message_package_bytes})
+        return 0
 
-    @app.post("/message_receiver")
-    def message_receiver(message_bytes: bytes = File(...),
-                         sender: Optional[str] = Header(None),
-                         message_space: Optional[str] = Header(None)):
-        start = time.time()
-        for (message_name, single_message_bytes) in pickle.loads(message_bytes):
-            message_hub[message_space][(sender, message_name)].append(
-                pickle.dumps(single_message_bytes))
-            print("--+--", (sender, message_space, message_name))
-
-        return {"status": 'success', 'time': time.time() - start, 'message_name': message_name}
+    @app.post("/put_")
+    def put_(message_package_bytes: bytes = File(...),
+             message_space: str = Form(...),
+             sender: str = Form(...),
+             receiver: str = Form(...)):
+        with message_hub.get_message_space_manager(message_space) as message_space_manager:
+            for message_name, message_bytes in pickle.loads(message_package_bytes):
+                message_space_manager.put(sender, receiver, message_name, message_bytes)
+        return 0
 
     # def is_server_start(server_name):
     #     """心跳机制：等待server_name服务器开启"""
@@ -129,39 +134,32 @@ def start_server(host: Host, port: Port,
     #                 f"{role_name} client has call {maximum_start_latency} times,"
     #                 f"but {server_name} service still not starts")
 
-    def _wait_for_server_started(target_server: Url):
-        target_role_name = url_role_name_dict[target_server]
+    def _wait_for_server_started(target_server_url: Url):
+        root_role_name = url_root_role_name_dict[target_server_url]
+        if target_server_is_ready[root_role_name]:
+            return
         for i in range(maximum_start_latency):
-
-            if target_server_is_ready[target_role_name]:
-                return
-
             try:
-                _assert_server_alived(target_server)
-                target_server_is_ready[target_role_name] = True
+                _assert_server_alived(target_server_url)
+                target_server_is_ready[root_role_name] = True
                 return
             except RequestException as e:
                 pass
 
             logging.debug(
-                f"wait for server started <{i+1}/{maximum_start_latency}> {target_role_name}:{target_server}")
+                f"wait for server started <{i+1}/{maximum_start_latency}> {root_role_name}:{target_server_url}")
             time.sleep(beat_interval)
 
         raise e
 
     def _assert_server_alived(target_server: Url):
-        target_role_name = url_role_name_dict[target_server]
-        logging.debug(
-            f"test for server alived {target_role_name}:{target_server}")
-        res = requests.post(f"{target_server}/heartbeat")
-        if res.status_code == 200:
-            logging.debug(
-                f"server {target_role_name}:{target_server} is alived")
-        else:
-            raise RequestException(request=res.request, response=res)
+        target_role_name = url_root_role_name_dict[target_server]
+        logging.debug(f"test for server alived {target_role_name}:{target_server}")
+        _post(url=f"{target_server}/heartbeat")
+        logging.debug(f"server {target_role_name}:{target_server} is alived")
 
-    def _post(*args, **kwargs) -> Any:
-        res = requests.post(*args, **kwargs)
+    def _post(**kwargs) -> Any:
+        res = requests.post(**kwargs)
         if res.status_code != 200:
             raise RequestException(request=res.request, response=res)
         if res.headers.get('content-type', None) == 'application/json':

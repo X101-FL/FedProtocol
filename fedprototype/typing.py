@@ -12,7 +12,9 @@ if TYPE_CHECKING:  # 防止使用类型检查导致的循环导入
     from fedprototype.base.base_state_saver import BaseStateSaver
     from fedprototype.base.base_logger_factory import BaseLoggerFactory
 
+ProtocolName = str
 RoleName = str
+RootRoleName = str
 RoleNamePrefix = str
 TrackPath = str
 SubRoleName = str
@@ -23,6 +25,7 @@ Sender = str
 MessageName = str
 MessageID = typing.Tuple[Sender, Receiver, MessageName]
 MessageObj = typing.Any
+MessageBytes = bytes
 StateDict = typing.Dict[str, typing.Any]
 # Client = 'BaseClient'
 # Comm = 'BaseComm'

@@ -13,12 +13,14 @@ from fedprototype.typing import (
     SubRoleName,
     TrackPath,
     UpperRoleName,
+    ProtocolName
 )
 
 
 class BaseClient(ABC):
 
-    def __init__(self, role_name: RoleName):
+    def __init__(self, protocol_name: ProtocolName, role_name: RoleName):
+        self.protocol_name: ProtocolName = protocol_name
         self.role_name: RoleName = role_name
         self.track_path: Optional[TrackPath] = None
         self.comm: Optional[Comm] = None

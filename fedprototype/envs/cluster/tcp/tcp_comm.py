@@ -17,45 +17,54 @@ from fedprototype.typing import (
     SubRoleName,
     UpperRoleName,
     Url,
+    RootRoleName
 )
 
 
 class TCPComm(BaseComm):
     def __init__(self,
+                 message_space: MessageSpace,
                  role_name: RoleName,
-                 role_name_url_dict: Dict[RoleName, Url],
-                 message_space: MessageSpace = 'main'):
+                 server_url: Url,
+                 role_name_to_root_dict: Dict[RoleName, RootRoleName]):
         super().__init__()
-        self.role_name = role_name
-        self.local_url = role_name_url_dict[role_name]
-        self.role_name_url_dict = role_name_url_dict
-        self.other_role_name_set = set(role_name_url_dict.keys()) - {role_name}
         self.message_space = message_space
+        self.role_name = role_name
+        self.server_url = server_url
+        self.role_name_to_root_dict = role_name_to_root_dict
+        self.other_role_name_set = set(role_name_to_root_dict.keys()) - {role_name}
 
-        self._send_url = f"{self.local_url}/send"
-        self._receive_url = f"{self.local_url}/receive"
-        self._clear_url = f"{self.local_url}/clear"
-        self._watch_url = f"{self.local_url}/watch"
+        self._set_message_space_path = "set_message_space"
+        self._send_path = "send"
+        self._receive_path = "receive"
+        self._clear_path = "clear"
+        self._watch_path = "watch"
+
+        self._set_name_space()
+
+    def _set_name_space(self) -> None:
+        self._post(path=self._set_message_space_path,
+                   json={"message_space": self.message_space,
+                         "role_name_to_root_dict":  self.role_name_to_root_dict})
 
     def _send(self, receiver: Receiver, message_package: List[Tuple[MessageName, MessageObj]]) -> None:
         self._assert_role_name(receiver=receiver)
-
-        self._post(url=self._send_url,
+        message_package_bytes = [(message_name, pickle.dumps(message_obj))
+                                 for message_name, message_obj in message_package]
+        self._post(path=self._send_path,
                    data={'message_space': self.message_space,
                          'sender': self.role_name,
-                         'receiver': receiver,
-                         'target_server': self.role_name_url_dict[receiver]},
-                   files={'message_bytes': pickle.dumps(message_package)})
+                         'receiver': receiver},
+                   files={'message_package_bytes': pickle.dumps(message_package_bytes)})
 
     def receive(self, sender: Sender, message_name: MessageName, timeout: Optional[int] = None) -> MessageObj:
         self._assert_role_name(sender=sender)
 
-        return self._post(url=self._receive_url,
+        return self._post(path=self._receive_path,
                           json={'message_space': self.message_space,
                                 'sender': sender,
                                 'receiver': self.role_name,
-                                'message_name': message_name,
-                                'target_server': self.role_name_url_dict[sender]},
+                                'message_name': message_name},
                           timeout=timeout)
 
     def watch_(self, sender_message_name_tuple_list: List[Tuple[Sender, MessageName]], timeout: Optional[int] = None) -> Generator[Tuple[Sender, MessageName, MessageObj], None, None]:
@@ -111,8 +120,8 @@ class TCPComm(BaseComm):
     #             if v in role_rename_dict:
     #                 self.target_server_dict[k] = role_rename_dict[v]
 
-    def _post(self, *args, **kwargs) -> Any:
-        res = requests.post(*args, **kwargs)
+    def _post(self, path, **kwargs) -> Any:
+        res = requests.post(url=f"{self.server_url}/{path}", **kwargs)
         if res.status_code != 200:
             raise RequestException(request=res.request, response=res)
         if res.headers.get('content-type', None) == 'application/json':
