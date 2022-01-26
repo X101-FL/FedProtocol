@@ -4,9 +4,9 @@ from threading import Lock
 from typing import DefaultDict, Dict, Generator, List, Optional, Tuple
 
 from fedprototype.typing import (
+    MessageBytes,
     MessageID,
     MessageName,
-    MessageBytes,
     MessageSpace,
     Receiver,
     RoleName,
@@ -51,7 +51,7 @@ class WatchManager:
 
 class MessageSpaceManager:
     def __init__(self) -> None:
-        self.role_name_url_dict: Dict[RoleName, Url] = {}
+        self._role_name_url_dict: Dict[RoleName, Url] = {}
         self._message_queue_dict: DefaultDict[MessageID, Queue] = defaultdict(Queue)
         self._watch_queue_dict: Dict[Receiver, WatchManager] = {}
         self._access_lock = Lock()
@@ -110,7 +110,10 @@ class MessageSpaceManager:
                 watch_manager.put(sender, message_name, message_bytes)
 
     def set_role_name_url_dict(self, role_name_url_dict: Dict[RoleName, Url]) -> None:
-        self.role_name_url_dict = role_name_url_dict
+        self._role_name_url_dict = role_name_url_dict
+
+    def get_target_server_url(self, role_name: RoleName) -> Url:
+        return self._role_name_url_dict[role_name]
 
     def __enter__(self) -> 'MessageSpaceManager':
         self._access_lock.acquire()
@@ -130,8 +133,8 @@ class MessageHub:
     def get_message_space_manager(self, message_space: MessageSpace) -> MessageSpaceManager:
         return self._message_space_dict[message_space]
 
-    def set_message_space_url(self, message_space: MessageSpace, role_name_to_root_dict: Dict[RoleName, RootRoleName]) -> None:
+    def set_message_space_url(self, message_space: MessageSpace, root_role_name_mapping: Dict[RoleName, RootRoleName]) -> None:
         role_name_url_dict = {role_name: self.root_role_name_url_dict[root_role_name]
-                              for role_name, root_role_name in role_name_to_root_dict.items()}
+                              for role_name, root_role_name in root_role_name_mapping.items()}
         self.get_message_space_manager(message_space) \
             .set_role_name_url_dict(role_name_url_dict)

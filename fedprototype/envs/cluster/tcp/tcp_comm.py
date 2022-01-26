@@ -10,14 +10,15 @@ from fedprototype.typing import (
     MessageName,
     MessageObj,
     MessageSpace,
+    ProtocolName,
     Receiver,
     RoleName,
     RoleNamePrefix,
+    RootRoleName,
     Sender,
     SubRoleName,
     UpperRoleName,
     Url,
-    RootRoleName
 )
 
 
@@ -26,13 +27,13 @@ class TCPComm(BaseComm):
                  message_space: MessageSpace,
                  role_name: RoleName,
                  server_url: Url,
-                 role_name_to_root_dict: Dict[RoleName, RootRoleName]):
+                 root_role_name_mapping: Dict[RoleName, RootRoleName]):
         super().__init__()
         self.message_space = message_space
         self.role_name = role_name
         self.server_url = server_url
-        self.role_name_to_root_dict = role_name_to_root_dict
-        self.other_role_name_set = set(role_name_to_root_dict.keys()) - {role_name}
+        self.root_role_name_mapping = root_role_name_mapping
+        self.other_role_name_set = set(root_role_name_mapping.keys()) - {role_name}
 
         self._set_message_space_path = "set_message_space"
         self._send_path = "send"
@@ -45,12 +46,14 @@ class TCPComm(BaseComm):
     def _set_name_space(self) -> None:
         self._post(path=self._set_message_space_path,
                    json={"message_space": self.message_space,
-                         "role_name_to_root_dict":  self.role_name_to_root_dict})
+                         "root_role_name_mapping":  self.root_role_name_mapping})
 
     def _send(self, receiver: Receiver, message_package: List[Tuple[MessageName, MessageObj]]) -> None:
         self._assert_role_name(receiver=receiver)
-        message_package_bytes = [(message_name, pickle.dumps(message_obj))
-                                 for message_name, message_obj in message_package]
+
+        message_package_bytes = [(message_name, pickle.dumps(message_obj)) for
+                                 message_name, message_obj in message_package]
+
         self._post(path=self._send_path,
                    data={'message_space': self.message_space,
                          'sender': self.role_name,
@@ -104,29 +107,36 @@ class TCPComm(BaseComm):
     def list_role_name(self, role_name_prefix: RoleNamePrefix) -> List[RoleName]:
         return [role_name for role_name in self.other_role_name_set if role_name.startswith(role_name_prefix)]
 
-    def _sub_comm(self, message_space: Optional[MessageSpace] = None, role_rename_dict: Optional[Dict[SubRoleName, UpperRoleName]] = None) -> Comm:
-        pass
-        # comm = TCPComm(self.role_name,
-        #                self.local_url,
-        #                self.other_role_name_set)
-        # comm.message_space = message_space
-        # return comm
-
-    # def set_target_server(self, role_rename_dict):
-    #     if not self.target_server_dict:
-    #         self.target_server_dict = role_rename_dict
-    #     else:
-    #         for k, v in self.target_server_dict:
-    #             if v in role_rename_dict:
-    #                 self.target_server_dict[k] = role_rename_dict[v]
+    def _sub_comm(self,
+                  protocol_name: ProtocolName,
+                  role_name: RoleName,
+                  role_name_mapping: Optional[Dict[SubRoleName, UpperRoleName]] = None
+                  ) -> Comm:
+        if role_name_mapping is None:
+            root_role_name_mapping = self.root_role_name_mapping
+        else:
+            root_role_name_mapping = {sub_role_name: self.root_role_name_mapping[upper_role_name] for
+                                      sub_role_name, upper_role_name in role_name_mapping.items()}
+        return TCPComm(message_space=f"{self.message_space}.{protocol_name}",
+                       role_name=role_name,
+                       server_url=self.server_url,
+                       root_role_name_mapping=root_role_name_mapping)
 
     def _post(self, path, **kwargs) -> Any:
         res = requests.post(url=f"{self.server_url}/{path}", **kwargs)
         if res.status_code != 200:
-            raise RequestException(request=res.request, response=res)
-        if res.headers.get('content-type', None) == 'application/json':
+            raise RequestException(f"falied to post : {res.url}\n{res.text}",
+                                   request=res.request,
+                                   response=res)
+        content_type = res.headers.get('content-type', None)
+        if content_type is None:
+            return pickle.loads(res.content)
+        elif 'json' in content_type:
             return res.json()
-        return pickle.loads(res.content)
+        elif 'text' in content_type:
+            return res.text
+        else:
+            raise Exception(f"unknown content type : {content_type}")
 
     def _assert_role_name(self, sender: Optional[Sender] = None, receiver: Optional[Receiver] = None):
         assert (not sender) or (sender in self.other_role_name_set),\

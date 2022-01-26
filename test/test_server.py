@@ -5,6 +5,7 @@ from pydantic import BaseModel
 import pickle
 from collections import defaultdict
 from fastapi import Body, File, Form, Response
+from fastapi.responses import PlainTextResponse
 from fedprototype.typing import MessageSpace, RoleName, RootRoleName
 from typing import Dict
 
@@ -17,15 +18,15 @@ def start_server(host="127.0.0.1", port=8081):
     def set_message_space(message_space: MessageSpace = Body(...),
                           role_name_to_root_dict: Dict[RoleName, RootRoleName] = Body(...)):
         print(message_space, role_name_to_root_dict)
-        return 0
+        return Response
 
     @app.post("/receive")
     def receive(key: str = Body(...), haha: str = Body(...)):
         return Response(content=message_hub[key])
 
     @app.post("/test")
-    def test():
-        return 123
+    def test(key: str = Body(...)):
+        return PlainTextResponse(content=key, status_code=200)
 
     @app.post("/send")
     def send(message_bytes: bytes = File(...),
@@ -48,7 +49,7 @@ if 1 == 2:
     requests.post("http://127.0.0.1:8081/receive",
                   json={'key': 'haha', 'haha': 'biubiu'})
 
-    requests.post("http://127.0.0.1:8081/test")
+    requests.post("http://127.0.0.1:8081/test", json="hahahahahaah")
 
     requests.post("http://127.0.0.1:8081/set_message_space",
                   json={'message_space': 'haha', 'role_name_to_root_dict': {'a': 'b', 'c': 'c'}})

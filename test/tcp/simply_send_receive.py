@@ -8,6 +8,9 @@ class ClientA(BaseClient):
 
     def run(self):
         self.logger.info("send to part B")
+        import time
+        print("sleep ...................")
+        time.sleep(5)
         self.comm.send('PartB', 'test_a_to_b', 'BiuBiuBiu')
 
         message_obj = self.comm.receive('PartB', 'test_b_to_a')
@@ -22,12 +25,15 @@ class ClientB(BaseClient):
 
     def run(self):
         self.logger.info("send to part A")
-        self.comm.send('PartA', 'test_b_to_a', 'YouYouYou')
+        import time
+        time.sleep(5)
+        exit(1)
+        # self.comm.send('PartA', 'test_b_to_a', 'YouYouYou')
 
-        message_obj = self.comm.receive('PartA', 'test_a_to_b')
-        self.logger.info(f"receive message : {message_obj}")
+        # message_obj = self.comm.receive('PartA', 'test_a_to_b')
+        # self.logger.info(f"receive message : {message_obj}")
 
-        assert message_obj == 'BiuBiuBiu'
+        # assert message_obj == 'BiuBiuBiu'
 
 
 if __name__ == '__main__':
@@ -35,6 +41,7 @@ if __name__ == '__main__':
     import sys
 
     role = sys.argv[1]
+    # role = 'ClientA'
     client = eval(f"{role}()")
 
     TCPEnv() \

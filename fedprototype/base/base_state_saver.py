@@ -1,8 +1,8 @@
-from typing import Union, Optional
 from abc import ABC, abstractmethod
+from typing import Optional, Union
 
 from fedprototype import BaseClient
-from fedprototype.typing import StateKey, StateDict
+from fedprototype.typing import StateDict, StateKey
 
 
 class BaseStateSaver(ABC):

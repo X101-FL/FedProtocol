@@ -1,3 +1,4 @@
+import time
 from multiprocessing import Process
 from typing import Any, Dict
 
@@ -10,7 +11,6 @@ from fedprototype.typing import (
     Client,
     Host,
     Port,
-    ProtocolName,
     RoleName,
     RootRoleName,
     Url,
@@ -33,17 +33,17 @@ class TCPEnv(BaseEnv):
         local_ip, local_port = self.root_role_name_ip_dict[client.role_name]
         comm_server = Process(target=start_server,
                               name=f"{client.role_name}:server",
-                              kwargs={'root_role_name_url_dict': self.root_role_name_url_dict,
-                                      'host': local_ip,
-                                      'port': local_port})
+                              kwargs={'host': local_ip, 'port': local_port,
+                                      'root_role_name': client.role_name,
+                                      'root_role_name_url_dict': self.root_role_name_url_dict})
         comm_server.start()
+        time.sleep(2)  # 为了防止local服务还没完全启动，client就已经开始请求local服务，TODO: 改成监听心跳模式
         self._set_client(client)
         try:
             with client.init():
                 ans = client.run(**run_kwargs)
         finally:
             comm_server.terminate()
-            comm_server.close()
         return ans
 
     def _default_setting(self):
@@ -52,7 +52,7 @@ class TCPEnv(BaseEnv):
 
     def _set_client(self, client: Client):
         client.env = self
-        client.track_path = f"{client.protocol_name}/{client.role_name}"
+        client.track_path = f"{client.protocol_name}.{client.role_name}"
         client.comm = self._get_comm(client)
         client._set_comm_logger()  # 这里调用了私有函数，因为这个函数不应暴露给用户
         client._set_client_logger()
@@ -61,4 +61,4 @@ class TCPEnv(BaseEnv):
         return TCPComm(message_space=client.protocol_name,
                        role_name=client.role_name,
                        server_url=self.root_role_name_url_dict[client.role_name],
-                       role_name_to_root_dict={r: r for r in self.root_role_name_url_dict.keys()})
+                       root_role_name_mapping={r: r for r in self.root_role_name_url_dict.keys()})

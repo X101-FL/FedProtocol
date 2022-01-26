@@ -8,13 +8,13 @@ from fedprototype.typing import (
     Logger,
     MessageName,
     MessageObj,
-    MessageSpace,
+    ProtocolName,
     Receiver,
     RoleName,
     RoleNamePrefix,
     Sender,
     SubRoleName,
-    UpperRoleName
+    UpperRoleName,
 )
 
 _MESSAGE_BUFFER = DefaultDict[Receiver, List[Tuple[MessageName, MessageObj]]]
@@ -77,9 +77,9 @@ class BaseComm(ABC):
 
     @abstractmethod
     def _sub_comm(self,
-                  message_space: Optional[MessageSpace] = None,
-                  role_rename_dict: Optional[Dict[SubRoleName,
-                                                  UpperRoleName]] = None
+                  protocol_name: ProtocolName,
+                  role_name: RoleName,
+                  role_name_mapping: Optional[Dict[SubRoleName, UpperRoleName]] = None
                   ) -> Comm:
         pass
 

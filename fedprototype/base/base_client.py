@@ -7,13 +7,13 @@ from fedprototype.typing import (
     Env,
     Logger,
     MessageSpace,
+    ProtocolName,
     RoleName,
     StateDict,
     StateKey,
     SubRoleName,
     TrackPath,
     UpperRoleName,
-    ProtocolName
 )
 
 
@@ -38,12 +38,11 @@ class BaseClient(ABC):
 
     def set_sub_client(self,
                        sub_client: Client,
-                       message_space: Optional[MessageSpace] = None,
-                       role_rename_dict: Optional[Dict[SubRoleName, UpperRoleName]] = None) -> None:
+                       role_name_mapping: Optional[Dict[SubRoleName, UpperRoleName]] = None) -> None:
         sub_client \
             ._set_env(self.env) \
             ._set_track_path(self) \
-            ._set_comm(self, message_space, role_rename_dict) \
+            ._set_comm(self, role_name_mapping) \
             ._set_comm_logger() \
             ._set_client_logger()
 
@@ -88,23 +87,16 @@ class BaseClient(ABC):
         return self
 
     def _set_track_path(self, upper_client: Client) -> Client:
-        for _attr_name, _attr_value in upper_client.__dict__.items():
-            if isinstance(_attr_value, BaseClient) and (_attr_value is self):
-                self.track_path = f"{upper_client.track_path}/{_attr_name}.{self.role_name}"
-                break
-        else:
-            raise Exception(f"can't find track_name of {self.role_name}")
+        self.track_path = f"{upper_client.track_path}/{self.protocol_name}.{self.role_name}"
         return self
 
     def _set_comm(self,
                   upper_client: Client,
-                  message_space: Optional[MessageSpace] = None,
-                  role_rename_dict: Optional[Dict[SubRoleName,
-                                                  UpperRoleName]] = None
+                  role_name_mapping: Optional[Dict[SubRoleName, UpperRoleName]] = None
                   ) -> Client:
-
-        self.comm = upper_client.comm._sub_comm(message_space,
-                                                role_rename_dict)
+        self.comm = upper_client.comm._sub_comm(self.protocol_name,
+                                                self.role_name,
+                                                role_name_mapping)
         return self
 
     def _set_client_logger(self) -> Client:
