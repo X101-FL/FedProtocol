@@ -33,7 +33,7 @@ class WatchManager:
         self._queue.put((sender, message_name, message_bytes))
         self._deduct_counter(sender, message_name)
 
-    def unreceived_sender_list(self) -> List[Sender]:
+    def unreceived(self) -> List[Tuple[Sender, MessageName]]:
         return list(self._counter.keys())
 
     def is_desired_message(self, sender: Sender, message_name: MessageName) -> bool:
@@ -87,6 +87,7 @@ class MessageSpaceManager:
                        ) -> WatchManager:
         sender_msg_counter = dict(Counter(sender_message_name_tuple_list))
         watch_manager = WatchManager(sender_msg_counter)
+
         for sender, message_name in sender_message_name_tuple_list:  # 把已经接收到的消息移入watch队列
             message_queue = self.get_message_queue(sender, receiver, message_name)
             if not message_queue.empty():
@@ -117,12 +118,10 @@ class MessageSpaceManager:
 
     def __enter__(self) -> 'MessageSpaceManager':
         self._access_lock.acquire()
-        print("acquire access lock")
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         self._access_lock.release()
-        print("release access lock")
 
 
 class MessageHub:
@@ -133,8 +132,8 @@ class MessageHub:
     def get_message_space_manager(self, message_space: MessageSpace) -> MessageSpaceManager:
         return self._message_space_dict[message_space]
 
-    def set_message_space_url(self, message_space: MessageSpace, root_role_name_mapping: Dict[RoleName, RootRoleName]) -> None:
+    def set_message_space_url(self, message_space: MessageSpace, root_role_bind_mapping: Dict[RoleName, RootRoleName]) -> None:
         role_name_url_dict = {role_name: self.root_role_name_url_dict[root_role_name]
-                              for role_name, root_role_name in root_role_name_mapping.items()}
+                              for role_name, root_role_name in root_role_bind_mapping.items()}
         self.get_message_space_manager(message_space) \
             .set_role_name_url_dict(role_name_url_dict)

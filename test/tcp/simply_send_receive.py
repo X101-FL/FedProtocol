@@ -4,13 +4,10 @@ from fedprototype import BaseClient
 class ClientA(BaseClient):
 
     def __init__(self):
-        super().__init__(protocol_name='SimplyTest', role_name='PartA')
+        super().__init__('SimplyTest', 'PartA')
 
     def run(self):
         self.logger.info("send to part B")
-        import time
-        print("sleep ...................")
-        time.sleep(5)
         self.comm.send('PartB', 'test_a_to_b', 'BiuBiuBiu')
 
         message_obj = self.comm.receive('PartB', 'test_b_to_a')
@@ -21,19 +18,16 @@ class ClientA(BaseClient):
 
 class ClientB(BaseClient):
     def __init__(self):
-        super().__init__(protocol_name='SimplyTest', role_name='PartB')
+        super().__init__('SimplyTest', 'PartB')
 
     def run(self):
         self.logger.info("send to part A")
-        import time
-        time.sleep(5)
-        exit(1)
-        # self.comm.send('PartA', 'test_b_to_a', 'YouYouYou')
+        self.comm.send('PartA', 'test_b_to_a', 'YouYouYou')
 
-        # message_obj = self.comm.receive('PartA', 'test_a_to_b')
-        # self.logger.info(f"receive message : {message_obj}")
+        message_obj = self.comm.receive('PartA', 'test_a_to_b')
+        self.logger.info(f"receive message : {message_obj}")
 
-        # assert message_obj == 'BiuBiuBiu'
+        assert message_obj == 'BiuBiuBiu'
 
 
 if __name__ == '__main__':
@@ -41,7 +35,6 @@ if __name__ == '__main__':
     import sys
 
     role = sys.argv[1]
-    # role = 'ClientA'
     client = eval(f"{role}()")
 
     TCPEnv() \

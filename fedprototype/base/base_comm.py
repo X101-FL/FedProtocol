@@ -26,7 +26,12 @@ class BaseComm(ABC):
         self._message_buffer: _MESSAGE_BUFFER = defaultdict(list)
         self.logger: Optional[Logger] = None
 
-    def send(self, receiver: Receiver, message_name: MessageName, message_obj: MessageObj, flush: bool = True) -> None:
+    def send(self,
+             receiver: Receiver,
+             message_name: MessageName,
+             message_obj: MessageObj,
+             flush: bool = True
+             ) -> None:
         message_obj = copy.deepcopy(message_obj)
         if flush:
             if receiver in self._message_buffer:
@@ -47,7 +52,11 @@ class BaseComm(ABC):
             self._send(receiver, _message_package)
 
     @abstractmethod
-    def receive(self, sender: Sender, message_name: MessageName, timeout: Optional[int] = None) -> MessageObj:
+    def receive(self,
+                sender: Sender,
+                message_name: MessageName,
+                timeout: Optional[int] = None
+                ) -> MessageObj:
         pass
 
     def watch(self,
@@ -72,17 +81,26 @@ class BaseComm(ABC):
         pass
 
     @abstractmethod
-    def clear(self, sender: Optional[Sender] = None, message_name: Optional[MessageName] = None) -> None:
+    def clear(self,
+              sender: Optional[Sender] = None,
+              message_name: Optional[MessageName] = None
+              ) -> None:
         pass
 
     @abstractmethod
     def _sub_comm(self,
                   protocol_name: ProtocolName,
                   role_name: RoleName,
-                  role_name_mapping: Optional[Dict[SubRoleName, UpperRoleName]] = None
+                  role_bind_mapping: Optional[Dict[SubRoleName, UpperRoleName]] = None
                   ) -> Comm:
         pass
 
     @abstractmethod
-    def _send(self, receiver: Receiver, message_package: List[Tuple[MessageName, MessageObj]]) -> None:
+    def _send(self,
+              receiver: Receiver,
+              message_package: List[Tuple[MessageName, MessageObj]]
+              ) -> None:
+        pass
+
+    def _active(self) -> None:
         pass

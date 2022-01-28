@@ -6,7 +6,6 @@ from fedprototype.typing import (
     Comm,
     Env,
     Logger,
-    MessageSpace,
     ProtocolName,
     RoleName,
     StateDict,
@@ -36,14 +35,19 @@ class BaseClient(ABC):
     def close(self) -> None:
         pass
 
+    def rename_protocol(self, protocol_name: ProtocolName) -> Client:
+        self.protocol_name = protocol_name
+        return self
+
     def set_sub_client(self,
                        sub_client: Client,
-                       role_name_mapping: Optional[Dict[SubRoleName, UpperRoleName]] = None) -> None:
+                       role_bind_mapping: Optional[Dict[SubRoleName, UpperRoleName]] = None) -> None:
         sub_client \
             ._set_env(self.env) \
             ._set_track_path(self) \
-            ._set_comm(self, role_name_mapping) \
+            ._set_comm(self, role_bind_mapping) \
             ._set_comm_logger() \
+            ._active_comm() \
             ._set_client_logger()
 
     def checkpoint(self,
@@ -92,11 +96,11 @@ class BaseClient(ABC):
 
     def _set_comm(self,
                   upper_client: Client,
-                  role_name_mapping: Optional[Dict[SubRoleName, UpperRoleName]] = None
+                  role_bind_mapping: Optional[Dict[SubRoleName, UpperRoleName]] = None
                   ) -> Client:
         self.comm = upper_client.comm._sub_comm(self.protocol_name,
                                                 self.role_name,
-                                                role_name_mapping)
+                                                role_bind_mapping)
         return self
 
     def _set_client_logger(self) -> Client:
@@ -106,6 +110,10 @@ class BaseClient(ABC):
     def _set_comm_logger(self) -> Client:
         self.comm.logger = self.env.logger_factory.get_logger(
             f"{self.track_path} [{self.comm.__class__.__name__}]")
+        return self
+
+    def _active_comm(self) -> Client:
+        self.comm._active()
         return self
 
     def __enter__(self) -> Client:
