@@ -1,10 +1,15 @@
-from typing import Tuple, Dict, DefaultDict, Generator, Optional, List
-from fedprototype.typing import Sender, Receiver, MessageName, \
-    MessageID, MessageObj, MessageSpace
-
-from collections import defaultdict
+from collections import Counter, defaultdict
 from queue import Queue
-from collections import Counter
+from typing import DefaultDict, Dict, Generator, List, Optional, Tuple
+
+from fedprototype.typing import (
+    MessageID,
+    MessageName,
+    MessageObj,
+    MessageSpace,
+    Receiver,
+    Sender,
+)
 
 
 class WatchManager:
@@ -37,11 +42,10 @@ class WatchManager:
             del self._counter[count_key]
 
 
-class MessageHub:
+class MessageSpaceManager:
     def __init__(self):
         self._message_queue_dict: DefaultDict[MessageID, Queue] = defaultdict(Queue)
         self._watch_queue_dict: Dict[Receiver, WatchManager] = {}
-        self._sub_message_hub_dict: Dict[MessageSpace, 'MessageHub'] = {}
 
     def lookup_message_queues(self,
                               sender: Optional[Sender] = None,
@@ -86,10 +90,20 @@ class MessageHub:
     def cancel_watch(self, receiver: Receiver) -> None:
         del self._watch_queue_dict[receiver]
 
-    def get_sub_message_hub(self, message_space: Optional[MessageSpace]) -> 'MessageHub':
-        if message_space is None:
-            return self
+    def put(self, sender: Sender, receiver: Receiver, message_name: MessageName, message_obj: MessageObj):
+        if not self.is_watching(receiver):
+            self.get_message_queue(sender, receiver, message_name).put(message_obj)
         else:
-            if message_space not in self._sub_message_hub_dict:
-                self._sub_message_hub_dict[message_space] = MessageHub()
-            return self._sub_message_hub_dict[message_space]
+            watch_manager = self.get_watch_manager(receiver)
+            if not watch_manager.is_desired_message(sender, message_name):
+                self.get_message_queue(sender, receiver, message_name).put(message_obj)
+            else:
+                watch_manager.put(sender, message_name, message_obj)
+
+
+class MessageHub:
+    def __init__(self):
+        self._message_space_dict: DefaultDict[MessageSpace, MessageSpaceManager] = defaultdict(MessageSpaceManager)
+
+    def get_message_space_manager(self, message_space: MessageSpace) -> MessageSpaceManager:
+        return self._message_space_dict[message_space]

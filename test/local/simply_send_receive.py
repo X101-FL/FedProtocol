@@ -4,7 +4,7 @@ from fedprototype import BaseClient
 class ClientA(BaseClient):
 
     def __init__(self):
-        super().__init__(role_name='PartA')
+        super().__init__('SimplyTest', 'PartA')
 
     def run(self):
         self.logger.info("send to part B")
@@ -18,7 +18,7 @@ class ClientA(BaseClient):
 
 class ClientB(BaseClient):
     def __init__(self):
-        super().__init__(role_name='PartB')
+        super().__init__('SimplyTest', 'PartB')
 
     def run(self):
         self.logger.info("send to part A")

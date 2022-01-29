@@ -84,7 +84,7 @@ class BaseClient(ABC):
         return None
 
     def load_state_dict(self, state_dict: StateDict) -> None:
-        return
+        return None
 
     def _set_env(self, env) -> Client:
         self.env = env
@@ -108,8 +108,8 @@ class BaseClient(ABC):
         return self
 
     def _set_comm_logger(self) -> Client:
-        self.comm.logger = self.env.logger_factory.get_logger(
-            f"{self.track_path} [{self.comm.__class__.__name__}]")
+        self.comm.logger = self.env.logger_factory \
+            .get_logger(f"[{self.comm.__class__.__name__}] {self.track_path}")
         return self
 
     def _active_comm(self) -> Client:

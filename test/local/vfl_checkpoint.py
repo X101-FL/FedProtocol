@@ -1,4 +1,4 @@
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 import numpy as np
 from sklearn.linear_model import LogisticRegression
@@ -10,7 +10,7 @@ from fedprototype.typing import Client, StateDict
 
 class PsiA(BaseClient):
     def __init__(self):
-        super().__init__('PsiA')
+        super().__init__('PSI', 'PsiA')
 
     def intersect(self, data_id):
         b_data_id = self.comm.receive('PsiB', 'data_id')
@@ -22,7 +22,7 @@ class PsiA(BaseClient):
 
 class PsiB(BaseClient):
     def __init__(self):
-        super().__init__('PsiB')
+        super().__init__('PSI', 'PsiB')
 
     def intersect(self, data_id):
         self.comm.send('PsiA', 'data_id', data_id)
@@ -33,7 +33,7 @@ class PsiB(BaseClient):
 
 class ModelA(BaseClient):
     def __init__(self):
-        super().__init__('ModelA')
+        super().__init__('FedLR', 'ModelA')
         self.sk_model = None
 
     def init(self) -> Client:
@@ -62,7 +62,7 @@ class ModelA(BaseClient):
 
 class ModelB(BaseClient):
     def __init__(self):
-        super().__init__('ModelB')
+        super().__init__('FedLR', 'ModelB')
         self.sk_transform = None
 
     def init(self) -> Client:
@@ -86,17 +86,15 @@ class ModelB(BaseClient):
 
 class VFLA(BaseClient):
     def __init__(self):
-        super().__init__("VFLA")
+        super().__init__("VFL", "VFLA")
         self.psi_a = PsiA()
         self.model_a = ModelA()
 
     def init(self):
         self.set_sub_client(self.psi_a,
-                            message_space='psi',
-                            role_rename_dict={"PsiA": "VFLA", "PsiB": "VFLB"})
+                            role_bind_mapping={"PsiA": "VFLA", "PsiB": "VFLB"})
         self.set_sub_client(self.model_a,
-                            message_space='model',
-                            role_rename_dict={"ModelA": "VFLA", "ModelB": "VFLB"})
+                            role_bind_mapping={"ModelA": "VFLA", "ModelB": "VFLB"})
         return self
 
     def train(self, ID_train, X_train, Y_train):
@@ -144,17 +142,15 @@ class VFLA(BaseClient):
 
 class VFLB(BaseClient):
     def __init__(self):
-        super().__init__("VFLB")
+        super().__init__("VFL", "VFLB")
         self.psi_b = PsiB()
         self.model_b = ModelB()
 
     def init(self):
         self.set_sub_client(self.psi_b,
-                            message_space='psi',
-                            role_rename_dict={"PsiA": "VFLA", "PsiB": "VFLB"})
+                            role_bind_mapping={"PsiA": "VFLA", "PsiB": "VFLB"})
         self.set_sub_client(self.model_b,
-                            message_space='model',
-                            role_rename_dict={"ModelA": "VFLA", "ModelB": "VFLB"})
+                            role_bind_mapping={"ModelA": "VFLA", "ModelB": "VFLB"})
         return self
 
     def train(self, ID_train, X_train):
@@ -191,7 +187,7 @@ def make_dataset():
     A_X, B_X = np.hsplit(X, [10])
     ID = np.arange(Y.size)
     ID_train, ID_test, A_X_train, A_X_test, \
-    B_X_train, B_X_test, Y_train, Y_test = train_test_split(ID, A_X, B_X, Y, test_size=0.3)
+        B_X_train, B_X_test, Y_train, Y_test = train_test_split(ID, A_X, B_X, Y, test_size=0.3)
 
     A_ID_train, _, A_X_train, _, Y_train, _ = train_test_split(ID_train, A_X_train, Y_train, test_size=0.1)
     B_ID_train, _, B_X_train, _ = train_test_split(ID_train, B_X_train, test_size=0.1)
@@ -199,18 +195,18 @@ def make_dataset():
     A_ID_test, _, A_X_test, _, Y_test, _ = train_test_split(ID_test, A_X_test, Y_test, test_size=0.1)
     B_ID_test, _, B_X_test, _ = train_test_split(ID_test, B_X_test, test_size=0.1)
     return A_ID_train, A_X_train, Y_train, \
-           A_ID_test, A_X_test, Y_test, \
-           B_ID_train, B_X_train, \
-           B_ID_test, B_X_test
+        A_ID_test, A_X_test, Y_test, \
+        B_ID_train, B_X_train, \
+        B_ID_test, B_X_test
 
 
 if __name__ == '__main__':
     from fedprototype.envs import LocalEnv
 
     A_ID_train, A_X_train, Y_train, \
-    A_ID_test, A_X_test, Y_test, \
-    B_ID_train, B_X_train, \
-    B_ID_test, B_X_test = make_dataset()
+        A_ID_test, A_X_test, Y_test, \
+        B_ID_train, B_X_train, \
+        B_ID_test, B_X_test = make_dataset()
 
     LocalEnv() \
         .add_client(VFLA(), entry_func='train', ID_train=A_ID_train, X_train=A_X_train, Y_train=Y_train) \

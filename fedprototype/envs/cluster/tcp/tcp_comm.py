@@ -105,14 +105,17 @@ class TCPComm(BaseComm):
                   role_bind_mapping: Optional[Dict[SubRoleName, UpperRoleName]] = None
                   ) -> Comm:
         if role_bind_mapping is None:
-            root_role_bind_mapping = self.root_role_bind_mapping
+            assert self.role_name == role_name, \
+                f"upper_role_name={self.role_name} should be equal to sub_role_name={role_name}, " \
+                f"if role_bind_mapping is not specified"
+            sub_root_role_bind_mapping = self.root_role_bind_mapping
         else:
-            root_role_bind_mapping = {sub_role_name: self.root_role_bind_mapping[upper_role_name] for
-                                      sub_role_name, upper_role_name in role_bind_mapping.items()}
+            sub_root_role_bind_mapping = {sub_role_name: self.root_role_bind_mapping[upper_role_name] for
+                                          sub_role_name, upper_role_name in role_bind_mapping.items()}
         return TCPComm(message_space=f"{self.message_space}.{protocol_name}",
                        role_name=role_name,
                        server_url=self.server_url,
-                       root_role_bind_mapping=root_role_bind_mapping)
+                       root_role_bind_mapping=sub_root_role_bind_mapping)
 
     def _post(self, path, **kwargs) -> Any:
         res = requests.post(url=f"{self.server_url}/{path}", **kwargs)
