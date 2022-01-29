@@ -27,21 +27,30 @@ MessageID = typing.Tuple[Sender, Receiver, MessageName]
 MessageObj = typing.Any
 MessageBytes = bytes
 StateDict = typing.Dict[str, typing.Any]
-# Client = 'BaseClient'
-# Comm = 'BaseComm'
-# Env = 'BaseEnv'
 
-# StateKey = str
-# StateSaver = 'BaseStateSaver'
-# LoggerFactory = 'BaseLoggerFactory'
+##################################################################
+# for pycharm
+##################################################################
 
-Client = typing.TypeVar('Client', bound='BaseClient')
-Comm = typing.TypeVar('Comm', bound='BaseComm')
-Env = typing.TypeVar('Env', bound='BaseEnv')
+Client = 'BaseClient'
+Comm = 'BaseComm'
+Env = 'BaseEnv'
 
 StateKey = str
-StateSaver = typing.TypeVar('StateSaver', bound='BaseStateSaver')
-LoggerFactory = typing.TypeVar('LoggerFactory', bound='BaseLoggerFactory')
+StateSaver = 'BaseStateSaver'
+LoggerFactory = 'BaseLoggerFactory'
+
+##################################################################
+# for vscode
+##################################################################
+
+# Client = typing.TypeVar('Client', bound='BaseClient')
+# Comm = typing.TypeVar('Comm', bound='BaseComm')
+# Env = typing.TypeVar('Env', bound='BaseEnv')
+
+# StateKey = str
+# StateSaver = typing.TypeVar('StateSaver', bound='BaseStateSaver')
+# LoggerFactory = typing.TypeVar('LoggerFactory', bound='BaseLoggerFactory')
 
 FileDir = str  # 文件夹路径
 FileName = str  # 单纯文件名，不带文件路径
