@@ -200,22 +200,47 @@ def make_dataset():
         B_ID_test, B_X_test
 
 
+def get_args():
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--role', type=str, choices=[VFLA.__name__, VFLB.__name__])
+    parser.add_argument('--entry_func', type=str, choices=['train', 'test'])
+    args = parser.parse_args()
+    return args
+
+
 if __name__ == '__main__':
-    from fedprototype.envs import LocalEnv
+    from fedprototype.envs import TCPEnv
+    args = get_args()
 
     A_ID_train, A_X_train, Y_train, \
         A_ID_test, A_X_test, Y_test, \
         B_ID_train, B_X_train, \
         B_ID_test, B_X_test = make_dataset()
 
-    LocalEnv() \
-        .add_client(VFLA(), entry_func='train', ID_train=A_ID_train, X_train=A_X_train, Y_train=Y_train) \
-        .add_client(VFLB(), entry_func='train', ID_train=B_ID_train, X_train=B_X_train) \
-        .set_checkpoint_home(r'D:\Temp\fedPrototype') \
-        .run()
+    if args.role == VFLA.__name__:
+        client = VFLA()
+        if args.entry_func == 'train':
+            entry_kwargs = {'ID_train': A_ID_train, 'X_train': A_X_train, 'Y_train': Y_train}
+        else:
+            entry_kwargs = {'ID_test': A_ID_test, 'X_test': A_X_test, 'Y_test': Y_test}
+    else:
+        client = VFLB()
+        if args.entry_func == 'train':
+            entry_kwargs = {'ID_train': B_ID_train, 'X_train': B_X_train}
+        else:
+            entry_kwargs = {'ID_test': B_ID_test, 'X_test': B_X_test}
 
-    LocalEnv() \
-        .add_client(VFLA(), entry_func='test', ID_test=A_ID_test, X_test=A_X_test, Y_test=Y_test) \
-        .add_client(VFLB(), entry_func='test', ID_test=B_ID_test, X_test=B_X_test) \
+    TCPEnv()\
+        .add_client(role_name='VFLA', host="127.0.0.1", port=5601) \
+        .add_client(role_name='VFLB', host="127.0.0.1", port=5602) \
         .set_checkpoint_home(r'D:\Temp\fedPrototype') \
-        .run()
+        .run(client=client, entry_func=args.entry_func, **entry_kwargs)
+
+
+# cd test/tcp
+# python vfl_checkpoint.py --role VFLA --entry_func train
+# python vfl_checkpoint.py --role VFLB --entry_func train
+
+# python vfl_checkpoint.py --role VFLA --entry_func test
+# python vfl_checkpoint.py --role VFLB --entry_func test

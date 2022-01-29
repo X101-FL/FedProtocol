@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Optional
+
 from fedprototype.typing import Env, Logger, LoggerFactory, StateSaver
 
 

@@ -82,9 +82,17 @@ class Level1ClientB(BaseClient):
 
 
 if __name__ == '__main__':
-    from fedprototype.envs import LocalEnv
+    from fedprototype.envs import TCPEnv
 
-    LocalEnv() \
-        .add_client(Level1ClientA()) \
-        .add_client(Level1ClientB()) \
-        .run()
+    import sys
+    role = sys.argv[1]
+    client = eval(f"{role}()")
+
+    TCPEnv() \
+        .add_client(role_name='1A', host="127.0.0.1", port=5601) \
+        .add_client(role_name='1B', host="127.0.0.1", port=5602) \
+        .run(client=client)
+
+# cd test/tcp
+# python message_space.py Level1ClientA
+# python message_space.py Level1ClientB
