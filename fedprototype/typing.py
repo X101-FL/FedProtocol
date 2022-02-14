@@ -32,25 +32,25 @@ StateDict = typing.Dict[str, typing.Any]
 # for pycharm
 ##################################################################
 
-Client = 'BaseClient'
-Comm = 'BaseComm'
-Env = 'BaseEnv'
+# Client = 'BaseClient'
+# Comm = 'BaseComm'
+# Env = 'BaseEnv'
 
-StateKey = str
-StateSaver = 'BaseStateSaver'
-LoggerFactory = 'BaseLoggerFactory'
+# StateKey = str
+# StateSaver = 'BaseStateSaver'
+# LoggerFactory = 'BaseLoggerFactory'
 
 ##################################################################
 # for vscode
 ##################################################################
 
-# Client = typing.TypeVar('Client', bound='BaseClient')
-# Comm = typing.TypeVar('Comm', bound='BaseComm')
-# Env = typing.TypeVar('Env', bound='BaseEnv')
+Client = typing.TypeVar('Client', bound='BaseClient')
+Comm = typing.TypeVar('Comm', bound='BaseComm')
+Env = typing.TypeVar('Env', bound='BaseEnv')
 
-# StateKey = str
-# StateSaver = typing.TypeVar('StateSaver', bound='BaseStateSaver')
-# LoggerFactory = typing.TypeVar('LoggerFactory', bound='BaseLoggerFactory')
+StateKey = str
+StateSaver = typing.TypeVar('StateSaver', bound='BaseStateSaver')
+LoggerFactory = typing.TypeVar('LoggerFactory', bound='BaseLoggerFactory')
 
 FileDir = str  # 文件夹路径
 FileName = str  # 单纯文件名，不带文件路径

@@ -1,3 +1,4 @@
 from .local.local_env import LocalEnv
 from .cluster.tcp import TCPEnv
-__all__ = ['LocalEnv', 'TCPEnv']
+from .cluster.spark import SparkEnv
+__all__ = ['LocalEnv', 'TCPEnv', 'SparkEnv']
