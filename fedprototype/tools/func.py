@@ -8,4 +8,4 @@ def get_free_ip_port():
     # _, port = _s.getsockname()
     # _s.close()
     # return ip, port
-    return "127.0.0.1", 6604
+    return "127.0.0.1", 6606
