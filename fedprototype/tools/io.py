@@ -1,5 +1,8 @@
 import os
 import pickle
+from typing import Any
+
+import requests
 
 
 def mf(file_path):  # mkdir for file_path
@@ -38,3 +41,18 @@ def load_pkl(file_path, non_exist='raise'):
         return None
     else:
         return non_exist
+
+
+def post(**kwargs) -> Any:
+    res = requests.post(**kwargs)
+    if res.status_code != 200:
+        raise Exception(f"post error:{res.text}")
+    content_type = res.headers.get('content-type', None)
+    if content_type is None:
+        return pickle.loads(res.content)
+    elif 'json' in content_type:
+        return res.json()
+    elif 'text' in content_type:
+        return res.text
+    else:
+        raise Exception(f"unknown content type : {content_type}")

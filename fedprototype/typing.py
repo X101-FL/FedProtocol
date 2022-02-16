@@ -26,6 +26,11 @@ MessageName = str
 MessageID = typing.Tuple[Sender, Receiver, MessageName]
 MessageObj = typing.Any
 MessageBytes = bytes
+PartitionID = int
+PartitionNum = int
+StageID = int
+TaskAttemptID = str
+JobID = str
 StateDict = typing.Dict[str, typing.Any]
 
 ##################################################################
@@ -59,29 +64,3 @@ FilePath = str  # 完整文件路径，文件夹路径 + 文件名
 Host = str
 Port = int
 Url = str
-
-__all__ = ['RoleName',
-           'RoleNamePrefix',
-           'TrackPath',
-           'SubRoleName',
-           'UpperRoleName',
-           'MessageSpace',
-           'Receiver',
-           'Sender',
-           'MessageName',
-           'MessageID',
-           'MessageObj',
-           'StateDict',
-           'Client',
-           'Comm',
-           'Env',
-           'StateKey',
-           'StateSaver',
-           'LoggerFactory',
-           'Logger',
-           'FileDir',
-           'FileName',
-           'FilePath',
-           'Host',
-           'Port',
-           'Url']

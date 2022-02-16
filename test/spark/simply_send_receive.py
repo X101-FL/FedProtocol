@@ -41,7 +41,7 @@ def get_client_spark_rdd(args):
         .set("spark.task.maxFailures", "4") \
         .set("spark.extraListeners", "fedprototype.spark.TaskFailedListener") \
         .set("spark.jars", "/root/Projects/FedPrototype/java/fedprototype_spark/fedprototype_spark.jar") \
-        .set("fed.coordinater.url", f"http://127.0.0.1:6606")
+        .set("fed.coordinater.url", f"http://127.0.0.1:6609")
 
     sc = SparkContext(master='local[2]', conf=_spark_conf)
     return sc.parallelize(range(args.paralle_n), numSlices=args.paralle_n)
@@ -67,8 +67,10 @@ if __name__ == '__main__':
         .add_client(role_name='PartB') \
         .set_job_id(job_id=client.protocol_name) \
         .run(client=client, rdd=rdd) \
-        .collect()
+    
+    import time
+    time.sleep(10000)
 
 # cd test/spark
-# python simply_send_receive.py ClientA
-# python simply_send_receive.py ClientB
+# python simply_send_receive.py --role ClientA --paralle_n 3
+# python simply_send_receive.py --role ClientB --paralle_n 3
