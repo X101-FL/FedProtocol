@@ -20,8 +20,7 @@ class SparkTaskRunner:
     def __call__(self, iterator: Iterator) -> Iterator:
         with SparkTaskServer(spark_env=self.spark_env,
                              task_context=self.task_context) as sts:
-            print(f"stage id : {self.task_context.stageId()}, index : {self.task_context.partitionId()}, attemptNumber : {self.task_context.attemptNumber()}, "
-                  f"data : {list(iterator)}")
+            print(f"get data : {list(iterator)}")
             import time
             time.sleep(10)
         yield 0

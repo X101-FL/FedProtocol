@@ -67,9 +67,9 @@ if __name__ == '__main__':
         .add_client(role_name='PartB') \
         .set_job_id(job_id=client.protocol_name) \
         .run(client=client, rdd=rdd) \
-    
-    import time
-    time.sleep(10000)
+        .collect()
+    # import time
+    # time.sleep(10000)
 
 # cd test/spark
 # python simply_send_receive.py --role ClientA --paralle_n 3

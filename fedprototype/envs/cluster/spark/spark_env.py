@@ -8,7 +8,7 @@ from pyspark.rdd import RDD
 
 from fedprototype.base.base_env import BaseEnv
 from fedprototype.envs.cluster.spark.spark_task_runner import SparkTaskRunner
-from fedprototype.tools.io import post
+from fedprototype.tools.io import post_pro
 from fedprototype.typing import Client, JobID, RoleName, RootRoleName, Url
 
 
@@ -45,11 +45,11 @@ class SparkEnv(BaseEnv):
 
 
 def _register_driver(spark_env: SparkEnv) -> None:
-    post(url=f"{spark_env.coordinater_url}/register_driver",
-         json={'job_id': spark_env.job_id,
-               'partition_num': spark_env.partition_num,
-               'root_role_name_set': list(spark_env.role_name_set),
-               'root_role_name': spark_env.client.role_name})
+    post_pro(url=f"{spark_env.coordinater_url}/register_driver",
+             json={'job_id': spark_env.job_id,
+                   'partition_num': spark_env.partition_num,
+                   'root_role_name_set': list(spark_env.role_name_set),
+                   'root_role_name': spark_env.client.role_name})
     print(f"register driver job_id:{spark_env.job_id}, role_name:{spark_env.client.role_name} successfully")
 
 
@@ -75,10 +75,16 @@ class _HeartbeatManager:
                    root_role_name: RootRoleName
                    ) -> None:
         while True:
-            heartbeat_res = post(url=f"{coordinater_url}/driver_heartbeat",
-                                 json={'job_id': job_id, 'root_role_name': root_role_name})
+            heartbeat_res = post_pro(retry_times=3,
+                                     retry_interval=3,
+                                     error='None',
+                                     url=f"{coordinater_url}/driver_heartbeat",
+                                     json={'job_id': job_id, 'root_role_name': root_role_name})
             print(f"heartbeat of job_id:{job_id}, role_name:{root_role_name}, heartbeat_res:{heartbeat_res}")
+            if heartbeat_res is None:
+                print(f"lost connect with coordinater ...")
+                os.kill(os.getpid(), signal.SIGTERM)
             if heartbeat_res['job_state'] == 'failed':
-                print("job failed ...")
+                print(f"federated job is failed ...")
                 os.kill(os.getpid(), signal.SIGTERM)
             time.sleep(5)

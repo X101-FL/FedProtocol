@@ -1,33 +1,25 @@
-import pickle
+import os
+import signal
 import time
-import typing
-from collections import defaultdict
 from multiprocessing import Process
-from queue import Empty
-from typing import Callable, Dict, List, Set, Tuple
+from typing import Callable, Set
 
-import numpy as np
 import requests
 import uvicorn
-from fastapi import Body, FastAPI, File, Form
+from fastapi import FastAPI
 from fastapi.exceptions import HTTPException
-from fastapi.responses import JSONResponse, PlainTextResponse, Response
+from fastapi.responses import PlainTextResponse
 from pyspark import TaskContext
 from requests import Response as ReqResponse
 from requests.exceptions import ConnectionError
-
+from fedprototype.tools.io import post_pro
 from fedprototype.base.base_client import BaseClient
 from fedprototype.base.base_logger_factory import BaseLoggerFactory
-from fedprototype.envs.cluster.tcp.tcp_message_hub import MessageHub
 from fedprototype.tools.func import get_free_ip_port
 from fedprototype.tools.log import LocalLoggerFactory
 from fedprototype.typing import (
     Host,
-    MessageBytes,
-    MessageName,
-    MessageSpace,
     Port,
-    ProtocolName,
     Receiver,
     RoleName,
     RootRoleName,
@@ -43,6 +35,7 @@ def _start_server(host: Host, port: Port,
                   coordinater_url: Url,
                   job_id: str, stage_id: int, partition_id: int, task_attempt_id: str,
                   root_role_name: RootRoleName, root_role_name_set: Set[RootRoleName],
+                  task_pid: int,
                   logger_factory: BaseLoggerFactory = LocalLoggerFactory,
                   maximum_start_latency: int = 20,
                   beat_interval: int = 2,
@@ -60,6 +53,12 @@ def _start_server(host: Host, port: Port,
         logger.debug(f"test.....")
         return SUCCESS_RESPONSE
 
+    @app.post("/fail_task")
+    def fail_task():
+        logger.debug(f"fail_task.....")
+        _exit()
+        return SUCCESS_RESPONSE
+
     def _post(**kwargs) -> ReqResponse:
         try:
             _res = requests.post(**kwargs)
@@ -75,17 +74,26 @@ def _start_server(host: Host, port: Port,
             detail = f"{detail}. {e.detail}"
             raise HTTPException(detail=detail, status_code=status_code)
 
-    _post(url=f"{coordinater_url}/register_task",
-          data={'job_id': job_id,
-                'stage_id': stage_id,
-                'partition_id': partition_id,
-                'task_attempt_id': task_attempt_id,
-                'root_role_name': root_role_name,
-                'root_role_name_set': root_role_name_set,
-                'task_server_url': task_server_url})
+    def _exit():
+        print(f"kill task, pid:{task_pid}")
+        os.kill(task_pid, signal.SIGTERM)
 
-    uvicorn.run(app=app, host=host, port=port, debug=True,
-                access_log=True, log_level=logger.level, use_colors=True)
+    def _register_task():
+        post_pro(url=f"{coordinater_url}/register_task",
+                 json={'job_id': job_id,
+                       'partition_id': partition_id,
+                       'root_role_name': root_role_name,
+                       'stage_id': stage_id,
+                       'task_attempt_id': task_attempt_id,
+                       'task_server_url': task_server_url})
+
+    try:
+        _register_task()
+        uvicorn.run(app=app, host=host, port=port, debug=True,
+                    access_log=True, log_level=logger.level, use_colors=True)
+    except BaseException as e:
+        print(f"error : {e}")
+        _exit()
 
 
 class SparkTaskServer:
@@ -107,7 +115,9 @@ class SparkTaskServer:
                                         'job_id': self.spark_env.job_id,
                                         'coordinater_url': self.spark_env.coordinater_url,
                                         'root_role_name': self.spark_env.client.role_name,
-                                        'root_role_name_set': self.spark_env.role_name_set})
+                                        'root_role_name_set': self.spark_env.role_name_set,
+                                        'task_pid': os.getpid()},
+                                daemon=True)
         self._process.start()
 
     def get_server_url(self) -> Url:

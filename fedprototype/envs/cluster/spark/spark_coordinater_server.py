@@ -2,16 +2,14 @@ import logging
 import time
 from datetime import datetime, timedelta
 from threading import Thread
-from typing import Callable, Dict, Set
+from typing import Any, Dict, Set
 
-import requests
 import uvicorn
 from fastapi import Body, FastAPI
 from fastapi.exceptions import HTTPException
 from fastapi.responses import JSONResponse, PlainTextResponse
-from requests import Response as ReqResponse
-from requests.exceptions import ConnectionError
 
+from fedprototype.tools.io import post_pro
 from fedprototype.typing import (
     Host,
     JobID,
@@ -26,8 +24,10 @@ from fedprototype.typing import (
 
 SUCCESS_CODE = 200
 SUCCESS_RESPONSE = PlainTextResponse(content='OK', status_code=SUCCESS_CODE)
-DRIVER_HEARTBEAT_EXPIRED_TIMEOUT = timedelta(seconds=40)
+DRIVER_HEARTBEAT_EXPIRED_TIMEOUT = timedelta(seconds=1000)
 STATE_CHECKING_INTERVAL = 10
+FAIL_TASK_RETRY_TIMES = 3
+FAIL_TASK_RETRY_IINTERVAL = 3
 
 
 class Task:
@@ -43,28 +43,13 @@ class Task:
 
 
 class TaskGroup:
-    NORMAL_STATE = "normal"
-    FAILED_STATE = "failed"
-
-    def __init__(self) -> None:
+    def __init__(self, partition_id: PartitionID) -> None:
+        self.partition_id = partition_id
         self.task_dict: Dict[RootRoleName, Task] = {}
-
-    def register_role(self,
-                      root_role_name: RootRoleName,
-                      server_url: Url,
-                      stage_id: StageID,
-                      task_attempt_id: TaskAttemptID
-                      ) -> None:
-        self.task_dict[root_role_name] = Task(root_role_name=root_role_name,
-                                              server_url=server_url,
-                                              stage_id=stage_id,
-                                              task_attempt_id=task_attempt_id)
 
 
 class Driver:
-    def __init__(self,
-                 root_role_name: RootRoleName,
-                 ) -> None:
+    def __init__(self, root_role_name: RootRoleName) -> None:
         self.root_role_name: RootRoleName = root_role_name
         self.last_heartbeat: datetime = None
         self.refresh_heartbeat()
@@ -154,11 +139,83 @@ class Job:
             print(f"clear job : {self.job_id}")
             del Job.job_dict[self.job_id]
 
+    def register_task(self,
+                      partition_id: PartitionID,
+                      root_role_name: RootRoleName,
+                      server_url: Url,
+                      stage_id: StageID,
+                      task_attempt_id: TaskAttemptID
+                      ) -> None:
+        if not self.is_normal():
+            raise HTTPException(detail=f"unable to register task, because job:{self.job_id} is failed",
+                                status_code=437)
+
+        if not (0 <= partition_id < self.partition_num):
+            raise HTTPException(detail=f"partition_id:{partition_id} out of scope:[0, {self.partition_num})",
+                                status_code=439)
+
+        if root_role_name not in self.root_role_name_set:
+            raise HTTPException(detail=f"unknown role_name : {root_role_name}, "
+                                       f"expected role_name : {self.root_role_name_set}",
+                                status_code=433)
+
+        if partition_id not in self.task_group_dict:
+            self.task_group_dict[partition_id] = TaskGroup(partition_id)
+        _task_group = self.task_group_dict[partition_id]
+
+        if root_role_name in _task_group.task_dict:
+            del _task_group.task_dict[root_role_name]
+            self.fail_task_group(_task_group)
+            raise HTTPException(detail=f"task was registed already, "
+                                f"the last task may failed without inform to coordinater, "
+                                f"so killing all other tasks in same fed group",
+                                status_code=440)
+
+        _task_group.task_dict[root_role_name] = Task(root_role_name=root_role_name,
+                                                     server_url=server_url,
+                                                     stage_id=stage_id,
+                                                     task_attempt_id=task_attempt_id)
+
+        self._distribute_task_server_url(_task_group)
+
+    def fail_task_group(self, task_group: TaskGroup) -> None:
+        for _task in list(task_group.task_dict.values()):
+            print(f"post to kill task job_id:{self.job_id}, "
+                  f"partition_id:{task_group.partition_id}, "
+                  f"root_role_name:{_task.root_role_name}")
+            post_pro(check_status_code=False,
+                     convert_content_type=False,
+                     retry_times=FAIL_TASK_RETRY_TIMES,
+                     retry_interval=FAIL_TASK_RETRY_IINTERVAL,
+                     error='None',
+                     url=f"{_task.server_url}/fail_task")
+        print(f"clear task group job_id:{self.job_id}, partition_id:{task_group.partition_id}")
+        del self.task_group_dict[task_group.partition_id]
+
+    def _distribute_task_server_url(self, task_group: TaskGroup) -> None:
+        root_role_name_url_dict = {_role_name: _task.server_url
+                                   for _role_name, _task in task_group.task_dict.items()}
+        for root_role_name, server_url in root_role_name_url_dict.items():
+            _post(retry_times=3,
+                  url=f"{server_url}/update_task_server_url",
+                  json={'root_role_name_url_dict': root_role_name_url_dict})
+            # TODO 继续
+
     def mark_failed(self) -> None:
         self.job_state = Job.FAILED_STATE
 
     def is_failed(self) -> bool:
         return self.job_state == Job.FAILED_STATE
+
+    def is_normal(self) -> bool:
+        return self.job_state == Job.NORMAL_STATE
+
+
+def _post(**kwargs) -> Any:
+    try:
+        return post_pro(**kwargs)
+    except Exception as e:
+        raise HTTPException(detail=f"internal post error : {e}", status_code=500)
 
 
 class DriverStateMonitor(Thread):
@@ -199,7 +256,7 @@ def _start_server(host: Host, port: Port):
                         root_role_name_set: Set[RootRoleName] = Body(...),
                         root_role_name: RootRoleName = Body(...)):
         root_role_name_set = set(root_role_name_set)
-        print(f"register job_id:{job_id}, partition_num:{partition_num}, "
+        print(f"register driver job_id:{job_id}, partition_num:{partition_num}, "
               f"root_role_name:{root_role_name}, root_role_name_set:{root_role_name_set}")
         _job = Job.get_or_create_job(job_id=job_id,
                                      root_role_name_set=root_role_name_set,
@@ -207,58 +264,22 @@ def _start_server(host: Host, port: Port):
         _job.register_driver(root_role_name=root_role_name)
         return SUCCESS_RESPONSE
 
-    # @app.post("/register_task")
-    # def register_task(job_id: JobID = Body(...),
-    #                   stage_id: StageID = Body(...),
-    #                   partition_id: PartitionID = Body(...),
-    #                   task_attempt_id: TaskAttemptID = Body(...),
-    #                   root_role_name: RootRoleName = Body(...),
-    #                   root_role_name_set: Set[RootRoleName] = Body(...),
-    #                   task_server_url: Url = Body(...)):
-    #     job_manager = job_manager_dict[job_id]
-    #     group_manager = job_manager.get_or_set_fed_group(partition_id, root_role_name_set)
-
-    #     if group_manager.is_started:
-    #         _fail_group_manager(group_manager)
-
-    #     group_manager.register_role(root_role_name=root_role_name,
-    #                                 server_url=task_server_url,
-    #                                 stage_id=stage_id,
-    #                                 task_attempt_id=task_attempt_id)
-    #     if group_manager.is_all_registed():
-    #         _start_group_manager(group_manager)
-
-    #     return SUCCESS_RESPONSE
-
-    # def _start_group_manager(group_manager: TaskGroupManager) -> None:
-    #     root_role_name_url_dict = {root_role_name: fed_role.server_url
-    #                                for root_role_name, fed_role in group_manager.registed_role_dict.items()}
-    #     print(f"root_role_name_url_dict : {root_role_name_url_dict}")
-    #     for root_role_name, server_url in root_role_name_url_dict.items():
-    #         print(f"start task : {root_role_name}@{server_url}")
-    #         _post(url=f"{server_url}/start_task",
-    #               data={'root_role_name_url_dict': root_role_name_url_dict})
-
-    #     group_manager.mark_started()
-
-    @app.post("/test")
-    def test():
+    @app.post("/register_task")
+    def register_task(job_id: JobID = Body(...),
+                      partition_id: PartitionID = Body(...),
+                      root_role_name: RootRoleName = Body(...),
+                      stage_id: StageID = Body(...),
+                      task_attempt_id: TaskAttemptID = Body(...),
+                      task_server_url: Url = Body(...)):
+        print(f"register tesk job_id:{job_id}, partition_id:{partition_id}, "
+              f"root_role_name:{root_role_name}, task_server_url:{task_server_url}")
+        _job = Job.get_job(job_id)
+        _job.register_task(partition_id=partition_id,
+                           root_role_name=root_role_name,
+                           server_url=task_server_url,
+                           stage_id=stage_id,
+                           task_attempt_id=task_attempt_id)
         return SUCCESS_RESPONSE
-
-    def _post(**kwargs) -> ReqResponse:
-        try:
-            _res = requests.post(**kwargs)
-            if _res.status_code != SUCCESS_CODE:
-                raise HTTPException(detail=f"internal post error : {_res.text}", status_code=500)
-        except ConnectionError as e:
-            raise HTTPException(detail=f"internal post error : {e}", status_code=500)
-
-    def _try_func(func: Callable, detail: str, status_code: int, **kwargs) -> None:
-        try:
-            func(**kwargs)
-        except HTTPException as e:
-            detail = f"{detail}. {e.detail}"
-            raise HTTPException(detail=detail, status_code=status_code)
 
     DriverStateMonitor().start()
     uvicorn.run(app=app, host=host, port=port, debug=True,
