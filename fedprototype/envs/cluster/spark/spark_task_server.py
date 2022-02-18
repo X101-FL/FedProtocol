@@ -2,17 +2,18 @@ import os
 import signal
 import time
 from multiprocessing import Process
-from typing import Callable, Set
+from typing import Callable, Dict, Set, Any
 
 import requests
 import uvicorn
-from fastapi import FastAPI
+from fastapi import Body, FastAPI
 from fastapi.exceptions import HTTPException
 from fastapi.responses import PlainTextResponse
 from pyspark import TaskContext
 from requests import Response as ReqResponse
 from requests.exceptions import ConnectionError
 from fedprototype.tools.io import post_pro
+from fedprototype.envs.cluster.spark.spark_message_hub import MessageHub
 from fedprototype.base.base_client import BaseClient
 from fedprototype.base.base_logger_factory import BaseLoggerFactory
 from fedprototype.tools.func import get_free_ip_port
@@ -40,60 +41,55 @@ def _start_server(host: Host, port: Port,
                   maximum_start_latency: int = 20,
                   beat_interval: int = 2,
                   alive_interval: int = 2):
-    url_root_role_name_dict = {}
+    root_role_name_url_dict: Dict[RootRoleName, Url] = {}
+    url_root_role_name_dict: Dict[Url, RootRoleName] = {}
     task_server_url = f"http://{host}:{port}"
+    message_hub: MessageHub = MessageHub(root_role_name_url_dict)
 
     logger = logger_factory.get_logger("[SparkServer]")
     logger.info(f"root_role_name={root_role_name}")
 
     app = FastAPI()
 
-    @app.post("/test")
-    def test():
-        logger.debug(f"test.....")
-        return SUCCESS_RESPONSE
-
     @app.post("/fail_task")
     def fail_task():
         logger.debug(f"fail_task.....")
-        _exit()
+        os.kill(task_pid, signal.SIGTERM)
         return SUCCESS_RESPONSE
 
-    def _post(**kwargs) -> ReqResponse:
-        try:
-            _res = requests.post(**kwargs)
-            if _res.status_code != SUCCESS_CODE:
-                raise HTTPException(detail=f"internal post error : {_res.text}", status_code=500)
-        except ConnectionError as e:
-            raise HTTPException(detail=f"internal post error : {e}", status_code=500)
+    @app.post("/update_task_server_url")
+    def update_task_server_url(task_server_url_dict: Dict[RootRoleName, Url] = Body(...)):
+        logger.debug(f"update_task_server_url task_server_url_dict:{task_server_url_dict}")
+        for root_role_name, server_url in task_server_url_dict.items():
+            root_role_name_url_dict[root_role_name] = server_url
+            url_root_role_name_dict[server_url] = root_role_name
+        return SUCCESS_RESPONSE
 
-    def _try_func(func: Callable, detail: str, status_code: int, **kwargs) -> None:
-        try:
-            func(**kwargs)
-        except HTTPException as e:
-            detail = f"{detail}. {e.detail}"
-            raise HTTPException(detail=detail, status_code=status_code)
-
-    def _exit():
-        print(f"kill task, pid:{task_pid}")
-        os.kill(task_pid, signal.SIGTERM)
-
+    @app.post("/_register_task")
     def _register_task():
-        post_pro(url=f"{coordinater_url}/register_task",
-                 json={'job_id': job_id,
-                       'partition_id': partition_id,
-                       'root_role_name': root_role_name,
-                       'stage_id': stage_id,
-                       'task_attempt_id': task_attempt_id,
-                       'task_server_url': task_server_url})
+        _try_func(func=post_pro,
+                  detail=f"failed to register task",
+                  status_code=443,
+                  url=f"{coordinater_url}/register_task",
+                  json={'job_id': job_id,
+                        'partition_id': partition_id,
+                        'root_role_name': root_role_name,
+                        'stage_id': stage_id,
+                        'task_attempt_id': task_attempt_id,
+                        'task_server_url': task_server_url})
 
-    try:
-        _register_task()
-        uvicorn.run(app=app, host=host, port=port, debug=True,
-                    access_log=True, log_level=logger.level, use_colors=True)
-    except BaseException as e:
-        print(f"error : {e}")
-        _exit()
+    def _try_func(func: Callable, detail: str, status_code: int, **kwargs) -> Any:
+        try:
+            return func(**kwargs)
+        except Exception as e:
+            if isinstance(e, HTTPException):
+                err_detail = e.detail
+            else:
+                err_detail = str(e)
+            raise HTTPException(detail=f"{detail}. {err_detail}", status_code=status_code)
+
+    uvicorn.run(app=app, host=host, port=port, debug=True,
+                access_log=True, log_level=logger.level, use_colors=True)
 
 
 class SparkTaskServer:
@@ -138,10 +134,11 @@ class SparkTaskServer:
 
 if __name__ == "__main__":
     from fedprototype.envs.cluster.spark.spark_env import SparkEnv
+    import sys
 
     class _Client(BaseClient):
         def __init__(self):
-            super().__init__('DevServer', 'PartA')
+            super().__init__('DevServer', sys.argv[1])
 
     spark_env = SparkEnv() \
         .add_client('PartA') \
@@ -162,6 +159,20 @@ if __name__ == "__main__":
             return "0.0"
 
     task_context = _TaskContext()
+
+    post_pro(url="http://127.0.0.1:6609/register_driver",
+             json={'job_id': 'dev server',
+                   'partition_num': 3,
+                   'root_role_name_set': ['PartA', 'PartB'],
+                   'root_role_name': spark_env.client.role_name})
+
     with SparkTaskServer(spark_env, task_context) as sts:
         import time
-        time.sleep(60)
+        time.sleep(3)
+        from fedprototype.tools.io import post_pro
+        post_pro(url=f"{sts.get_server_url()}/_register_task")
+        time.sleep(1000)
+
+# cd /root/Projects/FedPrototype/fedprototype/envs/cluster/spark
+# python spark_task_server.py PartA
+# python spark_task_server.py PartB

@@ -2,7 +2,7 @@ import logging
 import time
 from datetime import datetime, timedelta
 from threading import Thread
-from typing import Any, Dict, Set
+from typing import Any, Callable, Dict, Set
 
 import uvicorn
 from fastapi import Body, FastAPI
@@ -32,24 +32,39 @@ FAIL_TASK_RETRY_IINTERVAL = 3
 
 class Task:
     def __init__(self,
+                 job_id: JobID,
+                 partition_id: PartitionID,
                  root_role_name: RootRoleName,
                  server_url: Url,
                  stage_id: StageID,
                  task_attempt_id: TaskAttemptID) -> None:
+        self.job_id = job_id
+        self.partition_id = partition_id
         self.root_role_name = root_role_name
         self.server_url = server_url
         self.stage_id = stage_id
         self.task_attempt_id = task_attempt_id
 
+    def __repr__(self) -> str:
+        return f"Task >> job_id:{self.job_id}, partition_id:{self.partition_id}, " \
+               f"role_name:{self.root_role_name}, server_url:{self.server_url} " \
+               f"stage_id:{self.stage_id}, task_attempt_id:{self.task_attempt_id}"
+
 
 class TaskGroup:
-    def __init__(self, partition_id: PartitionID) -> None:
+    def __init__(self, job_id: JobID, partition_id: PartitionID) -> None:
+        self.job_id = job_id
         self.partition_id = partition_id
         self.task_dict: Dict[RootRoleName, Task] = {}
 
+    def __repr__(self) -> str:
+        return f"TaskGroup >> job_id:{self.job_id}, partition_id:{self.partition_id}, " \
+               f"registed_tasks:{set(self.task_dict.keys())}"
+
 
 class Driver:
-    def __init__(self, root_role_name: RootRoleName) -> None:
+    def __init__(self, job_id: JobID, root_role_name: RootRoleName) -> None:
+        self.job_id = job_id
         self.root_role_name: RootRoleName = root_role_name
         self.last_heartbeat: datetime = None
         self.refresh_heartbeat()
@@ -59,6 +74,9 @@ class Driver:
 
     def is_heartbeat_expired(self) -> bool:
         return (datetime.now() - self.last_heartbeat) > DRIVER_HEARTBEAT_EXPIRED_TIMEOUT
+
+    def __repr__(self) -> str:
+        return f"Driver >> job_id:{self.job_id}, role_name:{self.root_role_name}, is_expired:{self.is_heartbeat_expired()}"
 
 
 class Job:
@@ -84,7 +102,9 @@ class Job:
                           root_role_name_set: Set[RootRoleName],
                           partition_num: PartitionNum) -> 'Job':
         if job_id not in Job.job_dict:
-            Job.job_dict[job_id] = Job(job_id, root_role_name_set, partition_num)
+            Job.job_dict[job_id] = Job(job_id=job_id,
+                                       root_role_name_set=root_role_name_set,
+                                       partition_num=partition_num)
         _job = Job.job_dict[job_id]
 
         if _job.root_role_name_set != root_role_name_set:
@@ -100,8 +120,7 @@ class Job:
     @staticmethod
     def get_job(job_id: JobID) -> 'Job':
         if job_id not in Job.job_dict:
-            raise HTTPException(detail=f"no such job_id : {job_id}",
-                                status_code=435)
+            raise HTTPException(detail=f"no such job_id : {job_id}", status_code=435)
         return Job.job_dict[job_id]
 
     def register_driver(self,
@@ -124,7 +143,7 @@ class Job:
                                        f"expected role_name : {self.root_role_name_set}",
                                 status_code=433)
 
-        self.driver_dict[root_role_name] = Driver(root_role_name)
+        self.driver_dict[root_role_name] = Driver(job_id=self.job_id, root_role_name=root_role_name)
 
     def get_driver(self, root_role_name: RootRoleName) -> Driver:
         if root_role_name not in self.driver_dict:
@@ -160,46 +179,49 @@ class Job:
                                 status_code=433)
 
         if partition_id not in self.task_group_dict:
-            self.task_group_dict[partition_id] = TaskGroup(partition_id)
+            self.task_group_dict[partition_id] = TaskGroup(job_id=self.job_id, partition_id=partition_id)
         _task_group = self.task_group_dict[partition_id]
 
         if root_role_name in _task_group.task_dict:
             del _task_group.task_dict[root_role_name]
-            self.fail_task_group(_task_group)
+            self._fail_task_group(_task_group)
             raise HTTPException(detail=f"task was registed already, "
                                 f"the last task may failed without inform to coordinater, "
                                 f"so killing all other tasks in same fed group",
                                 status_code=440)
 
-        _task_group.task_dict[root_role_name] = Task(root_role_name=root_role_name,
+        _task_group.task_dict[root_role_name] = Task(job_id=self.job_id,
+                                                     partition_id=partition_id,
+                                                     root_role_name=root_role_name,
                                                      server_url=server_url,
                                                      stage_id=stage_id,
                                                      task_attempt_id=task_attempt_id)
 
         self._distribute_task_server_url(_task_group)
 
-    def fail_task_group(self, task_group: TaskGroup) -> None:
+    def _fail_task_group(self, task_group: TaskGroup) -> None:
         for _task in list(task_group.task_dict.values()):
-            print(f"post to kill task job_id:{self.job_id}, "
-                  f"partition_id:{task_group.partition_id}, "
-                  f"root_role_name:{_task.root_role_name}")
+            print(f"post to kill {_task}")
             post_pro(check_status_code=False,
                      convert_content_type=False,
                      retry_times=FAIL_TASK_RETRY_TIMES,
                      retry_interval=FAIL_TASK_RETRY_IINTERVAL,
                      error='None',
                      url=f"{_task.server_url}/fail_task")
-        print(f"clear task group job_id:{self.job_id}, partition_id:{task_group.partition_id}")
+        print(f"clear {task_group}")
         del self.task_group_dict[task_group.partition_id]
 
     def _distribute_task_server_url(self, task_group: TaskGroup) -> None:
         root_role_name_url_dict = {_role_name: _task.server_url
                                    for _role_name, _task in task_group.task_dict.items()}
-        for root_role_name, server_url in root_role_name_url_dict.items():
-            _post(retry_times=3,
-                  url=f"{server_url}/update_task_server_url",
-                  json={'root_role_name_url_dict': root_role_name_url_dict})
-            # TODO 继续
+        for task in list(task_group.task_dict.values()):
+            print(f"distribute task server url to {task} root_role_name_url_dict:{root_role_name_url_dict}")
+            _try_func(func=post_pro,
+                      detail=f"lost connect with {task}",
+                      status_code=441,
+                      retry_times=3,
+                      url=f"{task.server_url}/update_task_server_url",
+                      json=root_role_name_url_dict)
 
     def mark_failed(self) -> None:
         self.job_state = Job.FAILED_STATE
@@ -210,12 +232,19 @@ class Job:
     def is_normal(self) -> bool:
         return self.job_state == Job.NORMAL_STATE
 
+    def __repr__(self) -> str:
+        return f"Job >> job_id:{self.job_id}, job_state:{self.job_state}"
 
-def _post(**kwargs) -> Any:
+
+def _try_func(func: Callable, detail: str, status_code: int, **kwargs) -> Any:
     try:
-        return post_pro(**kwargs)
+        return func(**kwargs)
     except Exception as e:
-        raise HTTPException(detail=f"internal post error : {e}", status_code=500)
+        if isinstance(e, HTTPException):
+            err_detail = e.detail
+        else:
+            err_detail = str(e)
+        raise HTTPException(detail=f"{detail}. {err_detail}", status_code=status_code)
 
 
 class DriverStateMonitor(Thread):
@@ -227,7 +256,7 @@ class DriverStateMonitor(Thread):
             for _job in list(Job.job_dict.values()):
                 for _driver in list(_job.driver_dict.values()):
                     if _driver.is_heartbeat_expired():
-                        print(f"driver expired job_id:{_job.job_id}, root_role_name:{_driver.root_role_name}")
+                        print(f"driver expired {_driver}")
                         _job.mark_failed()
                         _job.drop_driver(_driver.root_role_name)
 
@@ -247,7 +276,7 @@ def _start_server(host: Host, port: Port):
         else:
             _driver = _job.get_driver(root_role_name)
             _driver.refresh_heartbeat()
-            print(f"driver:{root_role_name} heartbeat refreshed to {_driver.last_heartbeat}")
+            print(f"heartbeat refreshed {_driver}")
         return JSONResponse(content={'job_state': _job.job_state})
 
     @app.post("/register_driver")
