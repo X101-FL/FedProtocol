@@ -1,4 +1,10 @@
+import cloudpickle
+import pyspark.serializers
+from pyspark import SparkConf, SparkContext
+
 from fedprototype import BaseClient
+
+pyspark.serializers.cloudpickle = cloudpickle
 
 
 class Level2ClientA(BaseClient):
@@ -26,7 +32,7 @@ class Level1ClientA(BaseClient):
                             role_bind_mapping={"2A": "1A", "2B": "1B"})
         return self
 
-    def run(self):
+    def run(self, iterator):
         with self.l2_client1.init():
             self.l2_client1.run()
             self.l2_client1.run()
@@ -69,7 +75,7 @@ class Level1ClientB(BaseClient):
                             role_bind_mapping={"2A": "1A", "2B": "1B"})
         return self
 
-    def run(self):
+    def run(self, iterator):
         with self.l2_client2.init():
             assert self.l2_client2.run() == "Level1.1A/Level2#2.2A"
 
@@ -81,18 +87,41 @@ class Level1ClientB(BaseClient):
         assert message == "Level1.1A"
 
 
+def get_client_spark_rdd(args):
+    _spark_conf = SparkConf() \
+        .set("spark.task.maxFailures", "4") \
+        .set("spark.extraListeners", "fedprototype.spark.TaskFailedListener") \
+        .set("spark.jars", "/root/Projects/FedPrototype/java/fedprototype_spark/fedprototype_spark.jar") \
+        .set("fed.coordinater.url", f"http://127.0.0.1:6609")
+
+    sc = SparkContext(master='local[2]', conf=_spark_conf)
+    return sc.parallelize(range(args.paralle_n), numSlices=args.paralle_n)
+
+
+def get_args():
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--role', type=str, default=Level1ClientA.__name__,
+                        choices=[Level1ClientA.__name__, Level1ClientB.__name__])
+    parser.add_argument('--paralle_n', type=int, default=2)
+    args = parser.parse_args()
+    return args
+
+
 if __name__ == '__main__':
-    from fedprototype.envs import TCPEnv
+    from fedprototype.envs import SparkEnv
+    args = get_args()
+    client = eval(f"{args.role}()")
+    rdd = get_client_spark_rdd(args)
 
-    import sys
-    role = sys.argv[1]
-    client = eval(f"{role}()")
+    ans = SparkEnv() \
+        .add_client(role_name='1A') \
+        .add_client(role_name='1B') \
+        .set_job_id(job_id=client.protocol_name) \
+        .run(client=client, rdd=rdd) \
+        .collect()
+    print(f"result:{ans}")
 
-    TCPEnv() \
-        .add_client(role_name='1A', host="127.0.0.1", port=5601) \
-        .add_client(role_name='1B', host="127.0.0.1", port=5602) \
-        .run(client=client)
-
-# cd test/tcp
-# python message_space.py Level1ClientA
-# python message_space.py Level1ClientB
+# cd test/spark
+# python message_space.py --role Level1ClientA --paralle_n 2
+# python message_space.py --role Level1ClientB --paralle_n 2
