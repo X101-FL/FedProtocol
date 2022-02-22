@@ -56,7 +56,6 @@ class SparkDriverRunner:
         self.job_id = spark_env.job_id
         self._job_listener: JavaObject = None
         self._heartbeat_thread: HeartbeatThread = None
-        # self._is_driver_registed: bool = False
 
     def run(self,
             client: Client,
@@ -66,7 +65,7 @@ class SparkDriverRunner:
             ) -> Any:
         try:
             self._register_listener()
-            # self._register_driver()
+            self._register_driver()
             self._start_heartbeat()
             _rdd = rdd.mapPartitions(SparkTaskRunner(self.spark_env, client, entry_func))
             ans = action_callback(_rdd)
@@ -82,20 +81,18 @@ class SparkDriverRunner:
         _jsc = sc._jvm.org.apache.spark.SparkContext.getOrCreate()
         job_listener = sc._jvm.fedprototype.spark.FedJobListener(self.spark_env.coordinater_url,
                                                                  self.spark_env.job_id,
-                                                                 self.spark_env.root_role_name,
-                                                                 list(self.spark_env.root_role_name_set),
-                                                                 self.spark_env.partition_num)
+                                                                 self.spark_env.root_role_name)
         _jsc.addSparkListener(job_listener)
         self._job_listener = job_listener
 
-    # def _register_driver(self) -> None:
-    #     post_pro(url=f"{self.coordinater_url}/register_driver",
-    #              json={'job_id': self.job_id,
-    #                    'partition_num': self.spark_env.partition_num,
-    #                    'root_role_name_set': list(self.spark_env.root_role_name_set),
-    #                    'root_role_name': self.spark_env.root_role_name})
-    #     print(f"register driver job_id:{self.job_id}, role_name:{self.spark_env.root_role_name} successfully")
-    #     self._is_driver_registed = True
+    def _register_driver(self) -> None:
+        post_pro(url=f"{self.coordinater_url}/register_driver",
+                 json={'job_id': self.job_id,
+                       'partition_num': self.spark_env.partition_num,
+                       'root_role_name_set': list(self.spark_env.root_role_name_set),
+                       'root_role_name': self.spark_env.root_role_name})
+        print(f"register driver job_id:{self.job_id}, role_name:{self.spark_env.root_role_name} successfully")
+        self._is_driver_registed = True
 
     def _start_heartbeat(self) -> None:
         _heartbeat_thread = HeartbeatThread(coordinater_url=self.spark_env.coordinater_url,
@@ -108,14 +105,6 @@ class SparkDriverRunner:
         if self._job_listener:
             self._job_listener.markJobState(success)
             self._job_listener = None
-
-        # if self._is_driver_registed:
-        #     post_pro(url=f"{self.coordinater_url}/cancel_driver",
-        #              json={'job_id': self.job_id,
-        #                    'root_role_name': self.spark_env.root_role_name,
-        #                    'success': success})
-        #     print(f"cancel driver job_id:{self.job_id}, role_name:{self.spark_env.root_role_name} successfully")
-        #     self._is_driver_registed = False
 
         if self._heartbeat_thread:
             self._heartbeat_thread.stop()

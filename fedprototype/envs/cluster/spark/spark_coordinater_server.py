@@ -354,7 +354,7 @@ def _start_server(host: Host, port: Port):
 
         if (_task.stage_id != stage_id) or (_task.task_attempt_num != task_attempt_num):
             return NO_OP_RESPONSE
-
+        print(f"cancel {_task}, success:{success}")
         _job.drop_task(_task, success=success)
         return SUCCESS_RESPONSE
 

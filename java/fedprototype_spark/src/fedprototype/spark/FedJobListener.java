@@ -2,8 +2,6 @@ package fedprototype.spark;
 
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.List;
-
 import org.apache.spark.scheduler.SparkListener;
 import org.apache.spark.scheduler.SparkListenerJobEnd;
 import org.apache.spark.scheduler.SparkListenerJobStart;
@@ -16,20 +14,14 @@ public class FedJobListener extends SparkListener {
     private String rootRoleName = null;
     private boolean enable = true;
     private boolean success = false;
-    private int partition_num = 0;
-    private List<String> rootRoleNameSet = null;
 
     public FedJobListener(
             String coordinaterURL,
             String jobID,
-            String rootRoleName,
-            List<String> rootRoleNameSet,
-            int partition_num) {
+            String rootRoleName) {
         this.coordinaterURL = coordinaterURL;
         this.jobID = jobID;
         this.rootRoleName = rootRoleName;
-        this.rootRoleNameSet = rootRoleNameSet;
-        this.partition_num = partition_num;
         this.enable = false;
         System.out.println("new Listener coordinaterURL:" + this.coordinaterURL
                 + " jobID:" + this.jobID
@@ -45,18 +37,7 @@ public class FedJobListener extends SparkListener {
 
     @Override
     public void onJobStart(SparkListenerJobStart jobStart) {
-        HashMap<String, Object> params = new HashMap<>();
-        params.put("job_id", this.jobID);
-        params.put("root_role_name", this.rootRoleName);
-        params.put("root_role_name_set", this.rootRoleNameSet);
-        params.put("partition_num", this.partition_num);
-        try {
-            Http.post_pro(this.coordinaterURL + "/register_driver", params);
-            System.out.println("register driver successfully");
-            this.enable = true;
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        this.enable = true;
     }
 
     @Override
@@ -68,12 +49,12 @@ public class FedJobListener extends SparkListener {
         params.put("job_id", this.jobID);
         params.put("root_role_name", this.rootRoleName);
         params.put("success", this.success);
-        try {
-            Http.post_pro(this.coordinaterURL + "/cancel_driver", params);
-            System.out.println("cancel driver, job state:" + this.success);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        System.out.println("cancel driver, job state:" + this.success);
+        // try {
+        // Http.post_pro(this.coordinaterURL + "/cancel_driver", params);
+        // } catch (IOException e) {
+        // throw new RuntimeException(e);
+        // }
         this.enable = false;
     }
 
@@ -89,13 +70,13 @@ public class FedJobListener extends SparkListener {
         params.put("stage_id", taskEnd.stageId());
         params.put("task_attempt_num", taskEnd.taskInfo().attemptNumber());
         params.put("success", taskEnd.taskInfo().successful());
-        try {
-            Http.post_pro(this.coordinaterURL + "/cancel_task", params);
-            System.out.println("cancal task partition_id:" + params.get("partition_id")
-                    + " task state:" + taskEnd.taskInfo().successful());
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        System.out.println("cancal task partition_id:" + params.get("partition_id")
+                + " task state:" + taskEnd.taskInfo().successful());
+        // try {
+        // Http.post_pro(this.coordinaterURL + "/cancel_task", params);
+        // } catch (IOException e) {
+        // throw new RuntimeException(e);
+        // }
     }
 
 }

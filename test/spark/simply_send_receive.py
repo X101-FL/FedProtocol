@@ -21,6 +21,7 @@ class ClientA(BaseClient):
         self.logger.info(f"receive message : {message_obj}")
 
         assert message_obj == 'YouYouYou'
+        raise Exception()
 
 
 class ClientB(BaseClient):
