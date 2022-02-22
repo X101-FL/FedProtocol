@@ -1,7 +1,6 @@
 import cloudpickle
 import pyspark.serializers
 from pyspark import SparkConf, SparkContext
-
 from fedprototype import BaseClient
 from fedprototype.envs import SparkEnv
 
@@ -42,9 +41,7 @@ class ClientB(BaseClient):
 def get_client_spark_rdd(args):
     _spark_conf = SparkConf() \
         .set("spark.task.maxFailures", "4") \
-        .set("spark.extraListeners", "fedprototype.spark.TaskFailedListener") \
-        .set("spark.jars", "/root/Projects/FedPrototype/java/fedprototype_spark/fedprototype_spark.jar") \
-        .set("fed.coordinater.url", f"http://127.0.0.1:6609")
+        .set("spark.jars", "/root/Projects/FedPrototype/java/fedprototype_spark/fedprototype_spark.jar")
 
     sc = SparkContext(master='local[2]', conf=_spark_conf)
     return sc.parallelize(range(args.paralle_n), numSlices=args.paralle_n)
@@ -68,9 +65,9 @@ if __name__ == '__main__':
     ans = SparkEnv() \
         .add_client(role_name='PartA') \
         .add_client(role_name='PartB') \
-        .set_job_id(job_id=client.protocol_name) \
-        .run(client=client, rdd=rdd) \
-        .collect()
+        .set_coordinater_url("http://127.0.0.1:6609") \
+        .set_job_id("dev test") \
+        .run(client=client, rdd=rdd)
     print(f"result:{ans}")
 
 

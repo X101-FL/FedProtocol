@@ -29,9 +29,7 @@ class ClientB(BaseClient):
 def get_client_spark_rdd(args):
     _spark_conf = SparkConf() \
         .set("spark.task.maxFailures", "4") \
-        .set("spark.extraListeners", "fedprototype.spark.TaskFailedListener") \
-        .set("spark.jars", "/root/Projects/FedPrototype/java/fedprototype_spark/fedprototype_spark.jar") \
-        .set("fed.coordinater.url", f"http://127.0.0.1:6609")
+        .set("spark.jars", "/root/Projects/FedPrototype/java/fedprototype_spark/fedprototype_spark.jar")
 
     sc = SparkContext(master='local[2]', conf=_spark_conf)
     return sc.parallelize(range(args.paralle_n), numSlices=args.paralle_n)
@@ -63,9 +61,9 @@ if __name__ == '__main__':
         .add_client(role_name='PartB.1') \
         .add_client(role_name='PartB.2') \
         .add_client(role_name='PartB.3') \
-        .set_job_id(job_id=client.protocol_name) \
-        .run(client=client, rdd=rdd) \
-        .collect()
+        .set_coordinater_url("http://127.0.0.1:6609") \
+        .set_job_id("dev test") \
+        .run(client=client, rdd=rdd)
 
 # cd test/spark
 # python simply_watch.py --role ClientA --paralle_n 2

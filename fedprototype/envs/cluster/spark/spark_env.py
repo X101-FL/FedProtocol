@@ -1,18 +1,13 @@
-import os
-import signal
-import time
-from threading import Thread
-from typing import Dict, Set
+from typing import Any, Callable, Set
 
 from pyspark.rdd import RDD
 
 from fedprototype.base.base_env import BaseEnv
-from fedprototype.envs.cluster.spark.spark_task_runner import SparkTaskRunner
 from fedprototype.envs.cluster.spark.spark_comm import SparkComm
-from fedprototype.tools.io import post_pro
+from fedprototype.envs.cluster.spark.spark_driver_runner import SparkDriverRunner
 from fedprototype.tools.log import LocalLoggerFactory
 from fedprototype.tools.state_saver import LocalStateSaver
-from fedprototype.typing import Client, FileDir, JobID, RoleName, RootRoleName, Url
+from fedprototype.typing import Client, FileDir, RoleName, RootRoleName, Url
 
 
 class SparkEnv(BaseEnv):
@@ -29,20 +24,25 @@ class SparkEnv(BaseEnv):
         self.root_role_name_set.add(role_name)
         return self
 
-    def run(self, client: Client, rdd: RDD, entry_func: str = 'run') -> RDD:
-        _spark_conf = rdd.context.getConf()
-
+    def run(self,
+            client: Client,
+            rdd: RDD,
+            entry_func: str = 'run',
+            action_callback: Callable[[RDD], Any] = lambda _rdd: _rdd.count()
+            ) -> Any:
         self.root_role_name = client.role_name
-        self.coordinater_url = _spark_conf.get('fed.coordinater.url')
         self.partition_num = rdd.getNumPartitions()
-
-        _register_driver(self)
-        _HeartbeatManager.start_or_skip(self)
-
-        return rdd.mapPartitions(SparkTaskRunner(self, client, entry_func))
+        return SparkDriverRunner(self).run(client=client,
+                                           rdd=rdd,
+                                           entry_func=entry_func,
+                                           action_callback=action_callback)
 
     def set_job_id(self, job_id: str) -> 'SparkEnv':
         self.job_id = job_id
+        return self
+
+    def set_coordinater_url(self, coordinater_url: Url) -> 'SparkEnv':
+        self.coordinater_url = coordinater_url
         return self
 
     def set_checkpoint_home(self, home_dir: FileDir) -> "SparkEnv":
@@ -68,49 +68,3 @@ class SparkEnv(BaseEnv):
                          role_name=client.role_name,
                          server_url=server_url,
                          root_role_bind_mapping={r: r for r in self.root_role_name_set})
-
-
-def _register_driver(spark_env: SparkEnv) -> None:
-    post_pro(url=f"{spark_env.coordinater_url}/register_driver",
-             json={'job_id': spark_env.job_id,
-                   'partition_num': spark_env.partition_num,
-                   'root_role_name_set': list(spark_env.root_role_name_set),
-                   'root_role_name': spark_env.root_role_name})
-    print(f"register driver job_id:{spark_env.job_id}, role_name:{spark_env.root_role_name} successfully")
-
-
-class _HeartbeatManager:
-    heartbeating_threads: Dict[JobID, Thread] = {}
-
-    @staticmethod
-    def start_or_skip(spark_env: SparkEnv):
-        if spark_env.job_id in _HeartbeatManager.heartbeating_threads:
-            print(f"heartbeat thread for job:{spark_env.job_id} is started already ")
-        else:
-            _heartbeat_thread = Thread(target=_HeartbeatManager._heartbeat,
-                                       kwargs={'coordinater_url': spark_env.coordinater_url,
-                                               'job_id': spark_env.job_id,
-                                               'root_role_name': spark_env.root_role_name},
-                                       daemon=True)
-            _heartbeat_thread.start()
-            _HeartbeatManager.heartbeating_threads[spark_env.job_id] = _heartbeat_thread
-
-    @staticmethod
-    def _heartbeat(coordinater_url: Url,
-                   job_id: JobID,
-                   root_role_name: RootRoleName
-                   ) -> None:
-        while True:
-            heartbeat_res = post_pro(retry_times=3,
-                                     retry_interval=3,
-                                     error='None',
-                                     url=f"{coordinater_url}/driver_heartbeat",
-                                     json={'job_id': job_id, 'root_role_name': root_role_name})
-            print(f"heartbeat of job_id:{job_id}, role_name:{root_role_name}, heartbeat_res:{heartbeat_res}")
-            if heartbeat_res is None:
-                print(f"lost connect with coordinater ...")
-                os.kill(os.getpid(), signal.SIGTERM)
-            if heartbeat_res['job_state'] == 'failed':
-                print(f"federated job is failed ...")
-                os.kill(os.getpid(), signal.SIGTERM)
-            time.sleep(5)

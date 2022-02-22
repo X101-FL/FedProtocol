@@ -29,7 +29,7 @@ MessageBytes = bytes
 PartitionID = int
 PartitionNum = int
 StageID = int
-TaskAttemptID = str
+TaskAttemptNum = int
 JobID = str
 StateDict = typing.Dict[str, typing.Any]
 

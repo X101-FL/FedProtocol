@@ -228,7 +228,7 @@ class SparkTaskServer:
                        'partition_id': self.task_context.partitionId(),
                        'root_role_name': self.spark_env.root_role_name,
                        'stage_id': self.task_context.stageId(),
-                       'task_attempt_id': self.task_context.taskAttemptId(),
+                       'task_attempt_num': self.task_context.attemptNumber(),
                        'task_server_url': self._server_url})
 
     def _close(self):
