@@ -46,6 +46,8 @@ def _start_server(host: Host,
     logger = logger_factory.get_logger("[SparkServer]")
     logger.info(f"root_role_name={root_role_name}")
 
+    task_group_info: Dict[str, Any] = {}
+
     app = FastAPI()
 
     @app.post("/ping")
@@ -57,6 +59,19 @@ def _start_server(host: Host,
     def fail_task():
         logger.debug(f"fail_task.....")
         os.kill(task_pid, signal.SIGTERM)
+        return SUCCESS_RESPONSE
+
+    @app.post("/task_group_success")
+    def task_group_success():
+        print(f"port:{port} task_group_success ...")
+        task_group_info['is_successed'] = True
+        return SUCCESS_RESPONSE
+
+    @app.post("/wait_for_group_success")
+    def wait_for_group_success():
+        while not task_group_info.get('is_successed', False):
+            print(f"port:{port} wait_for_group_success ...")
+            time.sleep(2)
         return SUCCESS_RESPONSE
 
     @app.post("/update_task_server_url")
@@ -223,7 +238,7 @@ class SparkTaskServer:
                  url=f"{self._server_url}/ping")
 
     def _register_task_to_coordinater(self):
-        post_pro(url=f"{self.spark_env.coordinater_url}/register_task",
+        post_pro(url=f"{self.spark_env.coordinater_url}/task/register",
                  json={'job_id': self.spark_env.job_id,
                        'partition_id': self.task_context.partitionId(),
                        'root_role_name': self.spark_env.root_role_name,
@@ -231,7 +246,19 @@ class SparkTaskServer:
                        'task_attempt_num': self.task_context.attemptNumber(),
                        'task_server_url': self._server_url})
 
-    def _close(self):
+    def _wait_for_exit(self):
+        post_pro(url=f"{self.spark_env.coordinater_url}/task/success",
+                 json={'job_id': self.spark_env.job_id,
+                       'partition_id': self.task_context.partitionId(),
+                       'root_role_name': self.spark_env.root_role_name,
+                       'stage_id': self.task_context.stageId(),
+                       'task_attempt_num': self.task_context.attemptNumber(),
+                       'task_server_url': self._server_url})
+        post_pro(url=f"{self._server_url}/wait_for_group_success")
+
+    def _close(self, success: bool = True):
+        if success:
+            self._wait_for_exit()
         self._process.terminate()
         self._process = None
         self._server_url = None
@@ -241,7 +268,10 @@ class SparkTaskServer:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
-        self._close()
+        if exc_val is None:
+            self._close(success=True)
+        else:
+            self._close(success=False)
 
 
 if __name__ == "__main__":

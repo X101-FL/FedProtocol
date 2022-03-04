@@ -1,0 +1,5 @@
+UNREGISTER = 'unregister'
+STANDBY_FOR_RUN = 'standby_for_run'
+RUNNING = 'running'
+STANDBY_FOR_EXIT = 'standby_for_exit'
+EXITED = 'exited'
