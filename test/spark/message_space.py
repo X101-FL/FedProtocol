@@ -88,22 +88,16 @@ class Level1ClientB(BaseClient):
 
 
 def get_client_spark_rdd(args):
-    _spark_conf = SparkConf() \
-        .set("spark.task.maxFailures", "4") \
-        .set("spark.extraListeners", "fedprototype.spark.TaskFailedListener") \
-        .set("spark.jars", "/root/Projects/FedPrototype/java/fedprototype_spark/fedprototype_spark.jar") \
-        .set("fed.coordinater.url", f"http://127.0.0.1:6609")
-
-    sc = SparkContext(master='local[2]', conf=_spark_conf)
+    sc = SparkContext.getOrCreate()
     return sc.parallelize(range(args.paralle_n), numSlices=args.paralle_n)
 
 
 def get_args():
     import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--role', type=str, default=Level1ClientA.__name__,
+    parser = argparse.ArgumentParser(prefix_chars='=')
+    parser.add_argument('==role', type=str, default=Level1ClientA.__name__,
                         choices=[Level1ClientA.__name__, Level1ClientB.__name__])
-    parser.add_argument('--paralle_n', type=int, default=2)
+    parser.add_argument('==paralle_n', type=int, default=2)
     args = parser.parse_args()
     return args
 
@@ -117,11 +111,23 @@ if __name__ == '__main__':
     ans = SparkEnv() \
         .add_client(role_name='1A') \
         .add_client(role_name='1B') \
+        .set_coordinater_url("http://127.0.0.1:6609") \
         .set_job_id(job_id=client.protocol_name) \
-        .run(client=client, rdd=rdd) \
-        .collect()
+        .run(client=client, rdd=rdd)
     print(f"result:{ans}")
 
-# cd test/spark
-# python message_space.py --role Level1ClientA --paralle_n 2
-# python message_space.py --role Level1ClientB --paralle_n 2
+
+"""
+cd test/spark
+spark-submit --master yarn --num-executors 2 --executor-memory 1g --executor-cores 1 --deploy-mode client \
+             --conf spark.executorEnv.PYTHONPATH="/root/Projects/FedPrototype" \
+             --conf spark.executor.memoryOverhead=600M \
+             --conf spark.task.maxFailures=4 \
+             message_space.py ==role Level1ClientA ==paralle_n 2
+
+spark-submit --master yarn --num-executors 2 --executor-memory 1g --executor-cores 1 --deploy-mode client \
+             --conf spark.executorEnv.PYTHONPATH="/root/Projects/FedPrototype" \
+             --conf spark.executor.memoryOverhead=600M \
+             --conf spark.task.maxFailures=4 \
+             message_space.py ==role Level1ClientB ==paralle_n 2
+"""

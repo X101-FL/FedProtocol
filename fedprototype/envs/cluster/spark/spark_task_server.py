@@ -55,15 +55,16 @@ def _start_server(host: Host,
         logger.debug("ping ...")
         return SUCCESS_RESPONSE
 
-    @app.post("/fail_task")
-    def fail_task():
+    @app.post("/task_group_failed")
+    def task_group_failed():
         logger.debug(f"fail_task.....")
-        os.kill(task_pid, signal.SIGTERM)
+        os.kill(task_pid, signal.SIGKILL)
+        os.kill(os.getpid(), signal.SIGKILL)
         return SUCCESS_RESPONSE
 
-    @app.post("/task_group_success")
-    def task_group_success():
-        print(f"port:{port} task_group_success ...")
+    @app.post("/task_group_successed")
+    def task_group_successed():
+        print(f"port:{port} task_group_successed ...")
         task_group_info['is_successed'] = True
         return SUCCESS_RESPONSE
 
@@ -217,6 +218,7 @@ class SparkTaskServer:
         self._server_url: Url = None
 
     def _start(self):
+        print(f"spark server task_attempt_num:{self.task_context.attemptNumber()}, root_role_name:{self.spark_env.root_role_name}, task_pid:{os.getpid()}")
         host, port = get_free_ip_port()
         self._server_url = f"http://{host}:{port}"
         self._process = Process(target=_start_server,
@@ -257,6 +259,7 @@ class SparkTaskServer:
         post_pro(url=f"{self._server_url}/wait_for_group_success")
 
     def _close(self, success: bool = True):
+        print(f"close task task_attempt_num:{self.task_context.attemptNumber()}, root_role_name:{self.spark_env.root_role_name}, success : {success}")
         if success:
             self._wait_for_exit()
         self._process.terminate()

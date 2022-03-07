@@ -1,6 +1,6 @@
 import cloudpickle
 import pyspark.serializers
-from pyspark import SparkConf, SparkContext
+from pyspark import SparkContext
 
 from fedprototype import BaseClient
 
@@ -27,20 +27,16 @@ class ClientB(BaseClient):
 
 
 def get_client_spark_rdd(args):
-    _spark_conf = SparkConf() \
-        .set("spark.task.maxFailures", "4") \
-        .set("spark.jars", "/root/Projects/FedPrototype/java/fedprototype_spark/fedprototype_spark.jar")
-
-    sc = SparkContext(master='local[2]', conf=_spark_conf)
+    sc = SparkContext.getOrCreate()
     return sc.parallelize(range(args.paralle_n), numSlices=args.paralle_n)
 
 
 def get_args():
     import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--role', type=str, choices=[ClientA.__name__, ClientB.__name__])
-    parser.add_argument('--part_b_index', type=int, default=0)
-    parser.add_argument('--paralle_n', type=int, default=2)
+    parser = argparse.ArgumentParser(prefix_chars='=')
+    parser.add_argument('==role', type=str, choices=[ClientA.__name__, ClientB.__name__])
+    parser.add_argument('==part_b_index', type=int, default=0)
+    parser.add_argument('==paralle_n', type=int, default=2)
     args = parser.parse_args()
     return args
 
@@ -60,13 +56,29 @@ if __name__ == '__main__':
         .add_client(role_name='PartA') \
         .add_client(role_name='PartB.1') \
         .add_client(role_name='PartB.2') \
-        .add_client(role_name='PartB.3') \
         .set_coordinater_url("http://127.0.0.1:6609") \
-        .set_job_id("dev test") \
+        .set_job_id(job_id=client.protocol_name) \
         .run(client=client, rdd=rdd)
+    print(f"result:{ans}")
 
-# cd test/spark
-# python simply_watch.py --role ClientA --paralle_n 2
-# python simply_watch.py --role ClientB --part_b_index 1 --paralle_n 2
-# python simply_watch.py --role ClientB --part_b_index 2 --paralle_n 2
-# python simply_watch.py --role ClientB --part_b_index 3 --paralle_n 2
+
+"""
+cd test/spark
+spark-submit --master local[1] --num-executors 2 --executor-memory 1g --executor-cores 1 --deploy-mode client \
+             --conf spark.executorEnv.PYTHONPATH="/root/Projects/FedPrototype" \
+             --conf spark.executor.memoryOverhead=600M \
+             --conf spark.task.maxFailures=4 \
+             simply_watch.py ==role ClientA ==paralle_n 1
+
+spark-submit --master local[1] --num-executors 2 --executor-memory 1g --executor-cores 1 --deploy-mode client \
+             --conf spark.executorEnv.PYTHONPATH="/root/Projects/FedPrototype" \
+             --conf spark.executor.memoryOverhead=600M \
+             --conf spark.task.maxFailures=4 \
+             simply_watch.py ==role ClientB ==part_b_index 1 ==paralle_n 1
+
+spark-submit --master local[1] --num-executors 2 --executor-memory 1g --executor-cores 1 --deploy-mode client \
+             --conf spark.executorEnv.PYTHONPATH="/root/Projects/FedPrototype" \
+             --conf spark.executor.memoryOverhead=600M \
+             --conf spark.task.maxFailures=4 \
+             simply_watch.py ==role ClientB ==part_b_index 2 ==paralle_n 1
+"""

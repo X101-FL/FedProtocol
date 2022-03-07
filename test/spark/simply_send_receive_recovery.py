@@ -18,6 +18,11 @@ class ClientA(BaseClient):
         self.comm.send('PartB', 'test_a_to_b', 'BiuBiuBiu')
         message_obj = self.comm.receive('PartB', 'test_b_to_a')
         self.logger.info(f"receive message : {message_obj}")
+        
+        from pyspark import TaskContext
+        att_num = TaskContext.get().attemptNumber()
+        if att_num==0:
+            raise Exception("exception for testing recovery")
 
         assert message_obj == 'YouYouYou'
 
@@ -71,11 +76,11 @@ spark-submit --master yarn --num-executors 2 --executor-memory 1g --executor-cor
              --conf spark.executorEnv.PYTHONPATH="/root/Projects/FedPrototype" \
              --conf spark.executor.memoryOverhead=600M \
              --conf spark.task.maxFailures=4 \
-             simply_send_receive.py ==role ClientA ==paralle_n 2
+             simply_send_receive_recovery.py ==role ClientA ==paralle_n 1
 
 spark-submit --master yarn --num-executors 2 --executor-memory 1g --executor-cores 1 --deploy-mode client \
              --conf spark.executorEnv.PYTHONPATH="/root/Projects/FedPrototype" \
              --conf spark.executor.memoryOverhead=600M \
              --conf spark.task.maxFailures=4 \
-             simply_send_receive.py ==role ClientB ==paralle_n 2
+             simply_send_receive_recovery.py ==role ClientB ==paralle_n 1
 """

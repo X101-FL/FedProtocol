@@ -1,13 +1,14 @@
 import logging
 import time
 from datetime import datetime, timedelta
-from threading import Thread
+from threading import Lock, Thread
 from typing import Any, Callable, Dict, Set
 
 import uvicorn
 from fastapi import Body, FastAPI
 from fastapi.exceptions import HTTPException
 from fastapi.responses import JSONResponse
+
 from fedprototype.envs.cluster.spark.constants import *
 from fedprototype.tools.io import post_pro
 from fedprototype.typing import (
@@ -22,13 +23,20 @@ from fedprototype.typing import (
     Url,
 )
 
-SUCCESS_CODE = 200
-SUCCESS_RESPONSE = JSONResponse(content={'msg': 'OK'})
-NO_OP_RESPONSE = JSONResponse(content={'msg': 'NO_OP'})
 DRIVER_HEARTBEAT_EXPIRED_TIMEOUT = timedelta(seconds=40)
 STATE_CHECKING_INTERVAL = 10
-FAIL_TASK_RETRY_TIMES = 3
-FAIL_TASK_RETRY_IINTERVAL = 3
+
+
+class _Locker:
+    def __init__(self) -> None:
+        self._lock = Lock()
+
+    def __enter__(self) -> '_Locker':
+        self._lock.acquire()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self._lock.release()
 
 
 class Task:
@@ -54,23 +62,32 @@ class Task:
         self.task_attempt_num = task_attempt_num
         self.state = STANDBY_FOR_RUN
 
+    def clear(self):
+        self.server_url: Url = None
+        self.stage_id: StageID = None
+        self.task_attempt_num: TaskAttemptNum = None
+        self.state = UNREGISTER
+        self.is_successed = False
+
     def __repr__(self) -> str:
         return f"Task >> job_id:{self.job_id}, partition_id:{self.partition_id}, " \
                f"role_name:{self.root_role_name}, server_url:{self.server_url} " \
-               f"stage_id:{self.stage_id}, task_attempt_num:{self.task_attempt_num}" \
+               f"stage_id:{self.stage_id}, task_attempt_num:{self.task_attempt_num} " \
                f"state:{self.state}, is_successed:{self.is_successed}"
 
 
-class TaskGroup:
+class TaskGroup(_Locker):
     def __init__(self,
                  job_id: JobID,
                  partition_id: PartitionID,
                  root_role_name_set: Set[RootRoleName]) -> None:
+        super().__init__()
         self.job_id = job_id
         self.partition_id = partition_id
         self.root_role_name_set = root_role_name_set
         self.task_dict: Dict[RootRoleName, Task] = {}
         self._init_tasks()
+
         self.state = UNREGISTER
         self.is_successed = False
 
@@ -81,6 +98,11 @@ class TaskGroup:
         self.state = state
         for _task in self.task_dict.values():
             _task.state = state
+
+    def set_all_successed(self, success):
+        self.is_successed = success
+        for _task in self.task_dict.values():
+            _task.is_successed = success
 
     def distribute_task_server_url(self) -> None:
         root_role_name_url_dict = {_role_name: _task.server_url
@@ -94,21 +116,66 @@ class TaskGroup:
                       url=f"{task.server_url}/update_task_server_url",
                       json=root_role_name_url_dict)
 
-    def task_group_success(self):
-        for task in list(self.task_dict.values()):
+    def task_group_successed(self):
+        for task in self.task_dict.values():
             print(f"inform task group success : {task.server_url}")
             _try_func(func=post_pro,
                       detail=f"lost connect with {task}",
                       status_code=441,
                       retry_times=3,
-                      url=f"{task.server_url}/task_group_success")
+                      url=f"{task.server_url}/task_group_successed")
+        self.set_all_state(EXITED)
+        self.set_all_successed(True)
+
+    def task_group_failed(self):
+        for task in self.task_dict.values():
+            if task.state != UNREGISTER:
+                print(f"inform task group failed : {task.server_url}")
+                post_pro(check_status_code=False,
+                         convert_content_type=False,
+                         error='None',
+                         url=f"{task.server_url}/task_group_failed")
+        self.clear()
+
+    def register_task(self,
+                      root_role_name: RootRoleName,
+                      server_url: Url,
+                      stage_id: StageID,
+                      task_attempt_num: TaskAttemptNum) -> None:
+        _task = self.task_dict[root_role_name]
+        if _task.state != UNREGISTER:
+            self.task_group_failed()
+        _task.register(server_url, stage_id, task_attempt_num)
+        if self.is_all_state(STANDBY_FOR_RUN):
+            self.set_all_state(RUNNING)
+            self.distribute_task_server_url()
+
+    def task_successed(self,
+                       root_role_name: RootRoleName,
+                       server_url: Url,
+                       stage_id: StageID,
+                       task_attempt_num: TaskAttemptNum):
+        _task = self.task_dict[root_role_name]
+        if _task.state != RUNNING:
+            raise HTTPException(detail=f"unable to success task under state:{self.state}",
+                                status_code=446)
+        _task.state = STANDBY_FOR_EXIT
+        _task.is_successed = True
+        if self.is_all_state(STANDBY_FOR_EXIT):
+            self.task_group_successed()
+
+    def clear(self):
+        for task in self.task_dict.values():
+            task.clear()
+        self.state = UNREGISTER
+        self.is_successed = False
 
     def _init_tasks(self):
         self.task_dict = {_rrn: Task(self.job_id, self.partition_id, _rrn) for _rrn in self.root_role_name_set}
 
     def __repr__(self) -> str:
         return f"TaskGroup >> job_id:{self.job_id}, partition_id:{self.partition_id}, " \
-               f"registed_tasks:{set(self.task_dict.keys())}" \
+               f"registed_tasks:{set(self.task_dict.keys())}, " \
                f"state:{self.state}, is_successed:{self.is_successed}"
 
 
@@ -117,6 +184,8 @@ class Driver:
         self.job_id = job_id
         self.root_role_name: RootRoleName = root_role_name
         self.last_heartbeat: datetime = None
+        self.refresh_heartbeat()
+
         self.state = UNREGISTER
         self.is_successed = False
 
@@ -124,13 +193,10 @@ class Driver:
         self.last_heartbeat: datetime = datetime.now()
 
     def is_heartbeat_expired(self) -> bool:
-        if self.state == UNREGISTER:
-            return False
-        else:
-            return (datetime.now() - self.last_heartbeat) > DRIVER_HEARTBEAT_EXPIRED_TIMEOUT
+        return (datetime.now() - self.last_heartbeat) > DRIVER_HEARTBEAT_EXPIRED_TIMEOUT
 
     def __repr__(self) -> str:
-        return f"Driver >> job_id:{self.job_id}, role_name:{self.root_role_name}, is_expired:{self.is_heartbeat_expired()}" \
+        return f"Driver >> job_id:{self.job_id}, role_name:{self.root_role_name}, is_expired:{self.is_heartbeat_expired()}, " \
                f"state:{self.state}, is_successed:{self.is_successed}"
 
 
@@ -187,6 +253,11 @@ class Job:
             raise HTTPException(detail=f"no such job_id : {job_id}", status_code=435)
         return Job.job_dict[job_id]
 
+    @staticmethod
+    def drop_job(job_id: JobID) -> None:
+        print(f"del job:{job_id}")
+        del Job.job_dict[job_id]
+
     def register_driver(self, root_role_name: RootRoleName) -> None:
         if self.state != UNREGISTER:
             raise HTTPException(detail=f"can't register driver under '{self.state}' state",
@@ -195,7 +266,7 @@ class Job:
         _driver = self.get_driver(root_role_name)
 
         if _driver.state != UNREGISTER:
-            self.drop_driver(_driver, success=False)
+            self.fail_job()
             raise HTTPException(detail=f"'{root_role_name}' was registed already, "
                                        f"the last driver may failed without inform to coordinater, "
                                        f"so killing all other drivers",
@@ -206,46 +277,49 @@ class Job:
         if self.is_all_state(STANDBY_FOR_RUN):
             self.set_all_state(RUNNING)
 
-    def is_all_state(self, state):
-        return all(map(lambda _d: _d.state == state, self.driver_dict.values()))
-
-    def set_all_state(self, state):
-        self.state = state
-        for _driver in self.driver_dict.values():
-            _driver.state = state
-
-    def set_all_successed(self, success):
-        self.is_successed = success
-        for _driver in self.driver_dict.values():
-            _driver.is_successed = success
-
     def get_driver(self, root_role_name: RootRoleName) -> Driver:
         if root_role_name not in self.driver_dict:
             raise HTTPException(detail=f"no such driver : {root_role_name}",
                                 status_code=435)
         return self.driver_dict[root_role_name]
 
-    def drop_driver(self, driver: Driver, success: bool = True) -> None:
-        print(f"drop {driver}")
-        root_role_name = driver.root_role_name
-        for task_group in list(self.task_group_dict.values()):
-            if root_role_name in task_group.task_dict:
-                task = task_group.task_dict[root_role_name]
-                self.drop_task(task, success=success)
+    def is_all_state(self, state):
+        return all(map(lambda _d: _d.state == state, self.driver_dict.values()))
 
-        del self.driver_dict[root_role_name]
-        if not success:
-            self.mark_failed()
+    def set_all_successed(self, success):
+        self.is_successed = success
+        for _driver in self.driver_dict.values():
+            _driver.is_successed = success
 
-        if not len(self.driver_dict):
-            print(f"clear job : {self.job_id}")
-            del Job.job_dict[self.job_id]
+    def set_all_state(self, state):
+        self.state = state
+        for _driver in self.driver_dict.values():
+            _driver.state = state
 
-    def drop_task(self, task: Task, success: bool = True) -> None:
-        task_group = self.task_group_dict[task.partition_id]
-        del task_group.task_dict[task.root_role_name]
-        if not success:
-            self._fail_task_group(task_group)
+    def driver_finish(self, root_role_name: RootRoleName, success: bool):
+        _driver = self.get_driver(root_role_name)
+        if _driver.state != RUNNING:
+            raise HTTPException(detail=f"unacceptable driver state:{_driver.state}",
+                                status_code=441)
+        elif success:
+            if self.state == RUNNING:
+                _driver.state = STANDBY_FOR_EXIT
+                _driver.is_successed = True
+                if self.is_all_state(STANDBY_FOR_EXIT):
+                    self.set_all_state(EXITING)
+                    self.set_all_successed(True)
+            elif self.state == EXITING:
+                _driver.state = EXITING
+                _driver.is_successed = self.is_successed
+            else:
+                raise HTTPException(detail=f"unacceptable under state:{self.state}",
+                                    status_code=441)
+        else:
+            self.fail_job()
+
+    def fail_job(self) -> None:
+        self.set_all_state(EXITING)
+        self.set_all_successed(False)
 
     def register_task(self,
                       partition_id: PartitionID,
@@ -255,7 +329,7 @@ class Job:
                       task_attempt_num: TaskAttemptNum
                       ) -> None:
         if self.state != RUNNING:
-            raise HTTPException(detail=f"unable to register task under state:{self.state}",
+            raise HTTPException(detail=f"unable to register task under job state:{self.state}",
                                 status_code=437)
 
         if not (0 <= partition_id < self.partition_num):
@@ -267,20 +341,8 @@ class Job:
                                        f"expected role_name : {self.root_role_name_set}",
                                 status_code=433)
 
-        _task_group = self.task_group_dict[partition_id]
-        _task = _task_group.task_dict[root_role_name]
-        if _task.state == RUNNING:
-            _task.state = EXITED
-            _task.is_successed = False
-            self._fail_task_group(_task_group)
-            raise HTTPException(detail=f"task was registed already, "
-                                f"the last task may failed without inform to coordinater, "
-                                f"so killing all other tasks in same fed group",
-                                status_code=440)
-        _task.register(server_url, stage_id, task_attempt_num)
-        if _task_group.is_all_state(STANDBY_FOR_RUN):
-            _task_group.set_all_state(RUNNING)
-            _task_group.distribute_task_server_url()
+        with self.task_group_dict[partition_id] as _task_group:
+            _task_group.register_task(root_role_name, server_url, stage_id, task_attempt_num)
 
     def task_success(self,
                      partition_id: PartitionID,
@@ -289,58 +351,8 @@ class Job:
                      stage_id: StageID,
                      task_attempt_num: TaskAttemptNum
                      ) -> None:
-        _task_group = self.task_group_dict[partition_id]
-        _task = _task_group.task_dict[root_role_name]
-        if _task.state != RUNNING:
-            raise HTTPException(detail=f"unable to success task under state:{self.state}",
-                                status_code=446)
-        _task.state = STANDBY_FOR_EXIT
-        _task.is_successed = True
-        if _task_group.is_all_state(STANDBY_FOR_EXIT):
-            _task_group.set_all_state(EXITED)
-            _task_group.task_group_success()
-
-    def driver_finish(self, root_role_name: RootRoleName, success: bool):
-        _driver = self.get_driver(root_role_name)
-        if _driver.state == EXITED:
-            return
-        elif _driver.state != RUNNING:
-            raise HTTPException(detail=f"unacceptable driver state:{_driver.state}",
-                                status_code=441)
-        elif success:
-            if self.state == RUNNING:
-                _driver.state = STANDBY_FOR_EXIT
-                _driver.is_successed = True
-                if self.is_all_state(STANDBY_FOR_EXIT):
-                    self.set_all_state(EXITED)
-            elif self.state == EXITED:
-                _driver.state = EXITED
-                _driver.is_successed = self.is_successed
-            else:
-                raise HTTPException(detail=f"unacceptable under state:{self.state}",
-                                    status_code=441)
-        else:
-            self.set_all_state(EXITED)
-            self.set_all_successed(False)
-
-    def _fail_task_group(self, task_group: TaskGroup) -> None:
-        pass
-        # for _task in list(task_group.task_dict.values()):
-        #     print(f"post to kill {_task}")
-        #     post_pro(check_status_code=False,
-        #              convert_content_type=False,
-        #              retry_times=FAIL_TASK_RETRY_TIMES,
-        #              retry_interval=FAIL_TASK_RETRY_IINTERVAL,
-        #              error='None',
-        #              url=f"{_task.server_url}/fail_task")
-        # print(f"clear {task_group}")
-        # del self.task_group_dict[task_group.partition_id]
-
-    # def mark_failed(self) -> None:
-    #     self.job_state = Job.FAILED
-
-    # def is_failed(self) -> bool:
-    #     return self.job_state == Job.FAILED
+        with self.task_group_dict[partition_id] as _task_group:
+            _task_group.task_successed(root_role_name, server_url, stage_id, task_attempt_num)
 
     def __repr__(self) -> str:
         return f"Job >> job_id:{self.job_id}, job_state:{self.job_state}"
@@ -364,10 +376,15 @@ class DriverStateMonitor(Thread):
     def run(self) -> None:
         while True:
             for _job in list(Job.job_dict.values()):
-                for _driver in list(_job.driver_dict.values()):
-                    if _driver.is_heartbeat_expired():
+                for _driver in _job.driver_dict.values():
+                    if (_driver.state != EXITED) and (_driver.is_heartbeat_expired()):
                         print(f"driver expired {_driver}")
-                        _job.drop_driver(_driver, success=False)
+                        if _job.state != EXITING:
+                            _job.fail_job()
+                        _driver.state = EXITED
+                        if _job.is_all_state(EXITED):
+                            Job.drop_job(_job.job_id)
+                            break
 
             time.sleep(STATE_CHECKING_INTERVAL)
 
@@ -403,15 +420,19 @@ def _start_server(host: Host, port: Port):
                          root_role_name: RootRoleName = Body(...)):
         _job = Job.get_job(job_id)
         _driver = _job.get_driver(root_role_name)
-        if _driver.state == EXITED:
-            return JSONResponse(content={'state': EXITED, 'is_successed': _job.is_successed})
+        res_content = {'state': _driver.state}
+        if _driver.state == EXITING:
+            res_content['is_successed'] = _job.is_successed
+            _driver.state = EXITED
+            if _job.is_all_state(EXITED):
+                Job.drop_job(job_id)
         elif _driver.state in {STANDBY_FOR_RUN, RUNNING, STANDBY_FOR_EXIT}:
             _driver.refresh_heartbeat()
             print(f"heartbeat refreshed {_driver}")
-            return JSONResponse(content={'state': _driver.state})
         else:
             raise HTTPException(detail=f"unacceptable heartbeat under state:{_driver.state}",
                                 status_code=441)
+        return JSONResponse(content=res_content)
 
     @app.post("/driver/finish")
     def driver_finish(job_id: JobID = Body(...),
@@ -426,7 +447,13 @@ def _start_server(host: Host, port: Port):
                                root_role_name: RootRoleName = Body(...)):
         _job = Job.get_job(job_id)
         _driver = _job.get_driver(root_role_name)
-        return JSONResponse(content={'state': _driver.state, 'is_successed': _driver.is_successed})
+        res_content = {'state': _driver.state}
+        if _driver.state == EXITING:
+            res_content['is_successed'] = _driver.is_successed
+            _driver.state = EXITED
+            if _job.is_all_state(EXITED):
+                Job.drop_job(job_id)
+        return JSONResponse(content=res_content)
 
     @app.post("/task/register")
     def task_register(job_id: JobID = Body(...),
@@ -462,40 +489,7 @@ def _start_server(host: Host, port: Port):
                           task_attempt_num=task_attempt_num)
         return SUCCESS_RESPONSE
 
-    # @app.post("/cancel_driver")
-    # def cancel_driver(job_id: JobID = Body(...),
-    #                   root_role_name: RootRoleName = Body(...),
-    #                   success: bool = Body(...)):
-    #     print(f"cancel driver job_id:{job_id}, root_role_name:{root_role_name}, success:{success}")
-    #     _job = Job.get_job(job_id)
-    #     _driver = _job.get_driver(root_role_name)
-    #     _job.drop_driver(_driver, success=success)
-    #     return JSONResponse(content={'job_state': _job.job_state})
-
-    # @app.post("/cancel_task")
-    # def cancel_task(job_id: JobID = Body(...),
-    #                 root_role_name: RootRoleName = Body(...),
-    #                 partition_id: PartitionID = Body(...),
-    #                 stage_id: StageID = Body(...),
-    #                 task_attempt_num: TaskAttemptNum = Body(...),
-    #                 success: bool = Body(...)):
-    #     _job = Job.get_job(job_id)
-
-    #     if partition_id not in _job.task_group_dict:
-    #         return NO_OP_RESPONSE
-    #     _task_group = _job.task_group_dict[partition_id]
-
-    #     if root_role_name not in _task_group.task_dict:
-    #         return NO_OP_RESPONSE
-    #     _task = _task_group.task_dict[root_role_name]
-
-    #     if (_task.stage_id != stage_id) or (_task.task_attempt_num != task_attempt_num):
-    #         return NO_OP_RESPONSE
-    #     print(f"cancel {_task}, success:{success}")
-    #     _job.drop_task(_task, success=success)
-    #     return SUCCESS_RESPONSE
-
-    # DriverStateMonitor().start()
+    DriverStateMonitor().start()
     uvicorn.run(app=app, host=host, port=port, debug=True,
                 access_log=True, log_level=logging.DEBUG, use_colors=True)
 

@@ -41,7 +41,7 @@ class HeartbeatThread(Thread):
             if res is None:
                 print(f"lost connect with coordinater ...")
                 os.kill(os.getpid(), signal.SIGTERM)
-            elif res['state'] == EXITED:
+            elif res['state'] == EXITING:
                 if res['is_successed']:
                     self.stop()
                 else:
@@ -73,7 +73,6 @@ class SparkDriverRunner:
             self._register_driver()
             self._start_heartbeat()
             self._wait_for_other_drivers_register()
-            self._register_listener()
             _rdd = rdd.mapPartitions(SparkTaskRunner(self.spark_env, client, entry_func))
             ans = action_callback(_rdd)
         except BaseException as e:
@@ -119,7 +118,7 @@ class SparkDriverRunner:
             print(f"wait_for_finish:{res}")
             if res['state'] == STANDBY_FOR_EXIT:
                 time.sleep(3)
-            elif res['state'] == EXITED:
+            elif res['state'] == EXITING:
                 job_successed = res['is_successed']
                 if job_successed:
                     return
@@ -127,15 +126,6 @@ class SparkDriverRunner:
                     raise Exception(f"Job Failed")
             else:
                 raise Exception(f"failed to wait for other drivers")
-
-    def _register_listener(self) -> None:
-        sc = SparkContext.getOrCreate()
-        _jsc = sc._jvm.org.apache.spark.SparkContext.getOrCreate()
-        job_listener = sc._jvm.fedprototype.spark.FedJobListener(self.spark_env.coordinater_url,
-                                                                 self.spark_env.job_id,
-                                                                 self.spark_env.root_role_name)
-        _jsc.addSparkListener(job_listener)
-        self._job_listener = job_listener
 
     def _start_heartbeat(self) -> None:
         _heartbeat_thread = HeartbeatThread(coordinater_url=self.spark_env.coordinater_url,
