@@ -1,6 +1,8 @@
+import logging
 import pickle
 import time
 from collections import defaultdict
+from multiprocessing import Process
 from queue import Empty
 from typing import Callable, Dict, List, Tuple
 
@@ -13,7 +15,9 @@ from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from requests import Response as ReqResponse
 from requests.exceptions import ConnectionError
 
-from fedprototype.envs.cluster.tcp.tcp_message_hub import MessageHub
+from fedprototype.envs.p2p.tcp.tcp_message_hub import MessageHub
+from fedprototype.tools.io import post_pro
+from fedprototype.tools.log import getLogger
 from fedprototype.typing import (
     Host,
     MessageBytes,
@@ -31,22 +35,28 @@ SUCCESS_CODE = 200
 SUCCESS_RESPONSE = PlainTextResponse(content='OK', status_code=SUCCESS_CODE)
 
 
-def start_server(host: Host, port: Port, root_role_name: RootRoleName,
-                 root_role_name_url_dict: Dict[RootRoleName, Url],
-                 maximum_start_latency: int = 20,
-                 beat_interval: int = 2,
-                 alive_interval: int = 2):
+def _start_server(host: Host, port: Port,
+                  root_role_name: RootRoleName,
+                  root_role_name_url_dict: Dict[RootRoleName, Url],
+                  maximum_start_latency: int = 20,
+                  beat_interval: int = 2,
+                  alive_interval: int = 2):
     url_root_role_name_dict = {v: k for k, v in root_role_name_url_dict.items()}
     local_server_url = root_role_name_url_dict[root_role_name]
 
     target_server_is_ready: Dict[RootRoleName, bool] = defaultdict(bool)
     message_hub: MessageHub = MessageHub(root_role_name_url_dict)
 
-    logger = logger_factory.get_logger("[TcpServer]")
-    logger.info(f"root_role_name={root_role_name}")
-    logger.info(f"root_role_name_url_dict={root_role_name_url_dict}")
+    logger = getLogger(f"Frame.Server.{root_role_name}")
+    logger.info(f"start server...")
+    logger.info(f"root_role_name_url_dict: {root_role_name_url_dict}")
 
     app = FastAPI()
+
+    @app.post("/ping")
+    def ping():
+        logger.info("ping ...")
+        return SUCCESS_RESPONSE
 
     @app.post("/heartbeat")
     def heartbeat(requestor_server_url: Url = Body(...)):
@@ -58,7 +68,7 @@ def start_server(host: Host, port: Port, root_role_name: RootRoleName,
     @app.post("/set_message_space")
     def set_message_space(message_space: MessageSpace = Body(...),
                           root_role_bind_mapping: Dict[RoleName, RootRoleName] = Body(...)):
-        logger.debug(f"set_message_space : message_space={message_space}, root_role_bind_mapping={root_role_bind_mapping}")
+        logger.info(f"set_message_space : message_space={message_space}, root_role_bind_mapping={root_role_bind_mapping}")
         message_hub.set_message_space_url(message_space, root_role_bind_mapping)
         return SUCCESS_RESPONSE
 
@@ -171,7 +181,8 @@ def start_server(host: Host, port: Port, root_role_name: RootRoleName,
                 selected_unreceived_sender = selected_unreceived_tuple[0]
                 selected_unreceived_server_url = message_space_manager.get_target_server_url(selected_unreceived_sender)
                 _wait_for_server_started(selected_unreceived_server_url)
-                _test_for_server_alived(selected_unreceived_server_url)
+                if selected_unreceived_tuple in watch_manager.unreceived():
+                    _test_for_server_alived(selected_unreceived_server_url)
                 logger.debug(f"waiting for watched messages ...")
             else:
                 while not watch_manager.empty():
@@ -195,7 +206,7 @@ def start_server(host: Host, port: Port, root_role_name: RootRoleName,
                 target_server_is_ready[root_role_name] = True
                 return
             except HTTPException:
-                logger.debug(f"wait for server started <{i+1}/{maximum_start_latency}> {root_role_name}@{target_server_url}")
+                logger.info(f"wait for server started <{i+1}/{maximum_start_latency}> {root_role_name}@{target_server_url}")
                 time.sleep(beat_interval)
 
         _try_func(func=_test_for_server_alived,
@@ -226,10 +237,56 @@ def start_server(host: Host, port: Port, root_role_name: RootRoleName,
             detail = f"{detail}. {e.detail}"
             raise HTTPException(detail=detail, status_code=status_code)
 
-    # https://www.uvicorn.org/settings/#logging
-    log_config = uvicorn.config.LOGGING_CONFIG
-    log_config["formatters"]["default"]["fmt"] = "FastAPI %(levelname)s: %(message)s"
-    log_config["formatters"]["access"]["fmt"] = "[FastAPI %(levelname)s] %(asctime)s --> (%(message)s)"
-    log_config["formatters"]["access"]["datefmt"] = "%Y-%m-%d %H:%M:%S"
     uvicorn.run(app=app, host=host, port=port, debug=True,
-                access_log=True, log_level=logger.level, use_colors=True)
+                access_log=True, log_level=logging.ERROR, use_colors=True)
+
+
+class FedServer:
+    def __init__(self, host: Host, port: Port,
+                 root_role_name: RootRoleName,
+                 root_role_name_url_dict: Dict[RootRoleName, Url],
+                 **kwargs) -> None:
+        self.host = host
+        self.port = port
+        self.root_role_name = root_role_name
+        self.root_role_name_url_dict = root_role_name_url_dict
+        self.kwargs = kwargs
+        self._process: Process = None
+        self._server_url: Url = None
+        self.logger = getLogger("Frame.Server")
+
+    def _start(self):
+        self._server_url = f"http://{self.host}:{self.port}"
+        self.logger.info(f"start fed server:{self.root_role_name}@{self._server_url}")
+
+        self._process = Process(target=_start_server,
+                                name=f"FedServer_{self.root_role_name}",
+                                kwargs={'host': self.host,
+                                        'port': self.port,
+                                        'root_role_name': self.root_role_name,
+                                        'root_role_name_url_dict': self.root_role_name_url_dict,
+                                        **self.kwargs},
+                                daemon=True)
+        self._process.start()
+        self._wait_for_server_startup()
+
+    def get_server_url(self) -> Url:
+        return self._server_url
+
+    def _wait_for_server_startup(self):
+        post_pro(retry_times=10,
+                 retry_interval=0.5,
+                 url=f"{self._server_url}/ping")
+
+    def _close(self):
+        self.logger.info(f"close fed server:{self.root_role_name}@{self._server_url}")
+        self._process.terminate()
+        self._process = None
+        self._server_url = None
+
+    def __enter__(self) -> 'FedServer':
+        self._start()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        self._close()

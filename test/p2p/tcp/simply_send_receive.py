@@ -42,6 +42,6 @@ if __name__ == '__main__':
         .add_client(role_name='PartB', host="127.0.0.1", port=5602) \
         .run(client=client)
 
-# cd test/tcp
+# cd test/p2p/tcp
 # python simply_send_receive.py ClientA
 # python simply_send_receive.py ClientB

@@ -7,7 +7,7 @@ from fedprototype.envs.local.local_comm import LocalComm
 from fedprototype.envs.local.local_message_hub import MessageHub
 from fedprototype.tools.state_saver import LocalStateSaver
 from fedprototype.typing import Client, FileDir, RoleName
-
+from fedprototype.tools.log import getLogger
 
 class LocalEnv(BaseEnv):
     def __init__(self):
@@ -16,7 +16,7 @@ class LocalEnv(BaseEnv):
         self.client_info_dict: Dict[RoleName, Tuple[Client, str, dict]] = {}
         self.role_name_set: Set[RoleName] = set()
         self.msg_hub: MessageHub = MessageHub()
-
+        self.logger = getLogger("Frame.Local.Env")
         self._default_setting()
 
     def add_client(self, client: Client, entry_func: str = 'run', **entry_kwargs) -> "LocalEnv":
@@ -49,7 +49,6 @@ class LocalEnv(BaseEnv):
         return self
 
     def _default_setting(self):
-        self.set_logger_factory(LocalLoggerFactory)
         self.set_state_saver(LocalStateSaver())
 
     def _set_client(self, client: Client) -> None:

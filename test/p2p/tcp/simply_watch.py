@@ -45,7 +45,7 @@ if __name__ == '__main__':
         .add_client(role_name='PartB.3', host="127.0.0.1", port=5604) \
         .run(client=client)
 
-# cd test/tcp
+# cd test/p2p/tcp
 # python simply_watch.py --role ClientA
 # python simply_watch.py --role ClientB --part_b_index 1
 # python simply_watch.py --role ClientB --part_b_index 2

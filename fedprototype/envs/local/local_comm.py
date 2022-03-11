@@ -1,6 +1,6 @@
 from queue import Queue
 from threading import Lock
-from typing import Generator, List, Optional, Set, Tuple, Union, Dict
+from typing import Dict, Generator, List, Optional, Set, Tuple, Union
 
 from fedprototype.base.base_comm import BaseComm
 from fedprototype.envs.local.local_message_hub import MessageHub, WatchManager
@@ -9,13 +9,13 @@ from fedprototype.typing import (
     MessageName,
     MessageObj,
     MessageSpace,
+    ProtocolName,
     Receiver,
     RoleName,
     RoleNamePrefix,
     Sender,
-    ProtocolName,
     SubRoleName,
-    UpperRoleName
+    UpperRoleName,
 )
 
 

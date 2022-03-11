@@ -1,5 +1,4 @@
 import pickle
-import time
 from typing import Any, Dict, Generator, List, Optional, Tuple
 
 import requests
@@ -36,18 +35,10 @@ class TCPComm(BaseComm):
         self.root_role_bind_mapping = root_role_bind_mapping
         self.other_role_name_set = set(root_role_bind_mapping.keys()) - {role_name}
 
-        self._set_message_space_path = "set_message_space"
-        self._send_path = "send"
-        self._receive_path = "receive"
-        self._clear_path = "clear"
-        self._regist_watch_path = "regist_watch"
-        self._fetch_watch_path = "fetch_watch"
-
     def _active(self) -> None:
-        # 初始化根通讯器时，服务器可能还没完全启动，因此这里使用等待重试
-        self._retry_post(path=self._set_message_space_path,
-                         json={"message_space": self.message_space,
-                               "root_role_bind_mapping":  self.root_role_bind_mapping})
+        self._post(path="set_message_space",
+                   json={"message_space": self.message_space,
+                         "root_role_bind_mapping":  self.root_role_bind_mapping})
 
     def _send(self, receiver: Receiver, message_package: List[Tuple[MessageName, MessageObj]]) -> None:
         self._assert_role_name(receiver=receiver)
@@ -55,7 +46,7 @@ class TCPComm(BaseComm):
         message_package_bytes = [(message_name, pickle.dumps(message_obj)) for
                                  message_name, message_obj in message_package]
 
-        self._post(path=self._send_path,
+        self._post(path="send",
                    data={'message_space': self.message_space,
                          'sender': self.role_name,
                          'receiver': receiver},
@@ -64,7 +55,7 @@ class TCPComm(BaseComm):
     def receive(self, sender: Sender, message_name: MessageName, timeout: Optional[int] = None) -> MessageObj:
         self._assert_role_name(sender=sender)
 
-        return self._post(path=self._receive_path,
+        return self._post(path="receive",
                           json={'message_space': self.message_space,
                                 'sender': sender,
                                 'receiver': self.role_name,
@@ -75,21 +66,21 @@ class TCPComm(BaseComm):
                sender_message_name_tuple_list: List[Tuple[Sender, MessageName]],
                timeout: Optional[int] = None
                ) -> Generator[Tuple[Sender, MessageName, MessageObj], None, None]:
-        self._post(path=self._regist_watch_path,
+        self._post(path="regist_watch",
                    json={'message_space': self.message_space,
                          'receiver': self.role_name,
                          'sender_message_name_tuple_list': sender_message_name_tuple_list})
 
         watch_res = {'finished': False}
         while not watch_res['finished']:
-            watch_res = self._post(path=self._fetch_watch_path,
+            watch_res = self._post(path="fetch_watch",
                                    json={'message_space': self.message_space,
                                          'receiver': self.role_name})
             for sender, message_name, message_bytes in watch_res['data']:
                 yield sender, message_name, pickle.loads(message_bytes)
 
     def clear(self, sender: Optional[Sender] = None, message_name: Optional[MessageName] = None) -> None:
-        _res = self._post(path=self._clear_path,
+        _res = self._post(path="clear",
                           json={'message_space': self.message_space,
                                 'sender': sender,
                                 'receiver': self.role_name,
@@ -132,15 +123,6 @@ class TCPComm(BaseComm):
             return res.text
         else:
             raise Exception(f"unknown content type : {content_type}")
-
-    def _retry_post(self, path, retry_times: int = 5, interval: int = 1, **kwargs) -> Any:
-        for i in range(retry_times - 1):
-            try:
-                return self._post(path, **kwargs)
-            except RequestException:
-                self.logger.debug(f"<{i+1}/{retry_times}> retry post to : {self.server_url}/{path}")
-                time.sleep(interval)
-        return self._post(path, **kwargs)
 
     def _assert_role_name(self, sender: Optional[Sender] = None, receiver: Optional[Receiver] = None):
         assert (not sender) or (sender in self.other_role_name_set),\

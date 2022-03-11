@@ -2,8 +2,8 @@ from multiprocessing import Process
 from typing import Any, Dict
 
 from fedprototype.base.base_env import BaseEnv
-from fedprototype.envs.cluster.tcp.tcp_comm import TCPComm
-from fedprototype.envs.cluster.tcp.tcp_http_server import start_server
+from fedprototype.envs.p2p.tcp.tcp_comm import TCPComm
+from fedprototype.envs.p2p.tcp.tcp_fed_server import FedServer
 from fedprototype.tools.state_saver import LocalStateSaver
 from fedprototype.typing import Client, FileDir, Host, Port, RoleName, RootRoleName, Url
 
@@ -22,20 +22,12 @@ class TCPEnv(BaseEnv):
 
     def run(self, client: Client, entry_func: str = 'run', **entry_kwargs) -> Any:
         local_host, local_port = self.root_role_name_ip_dict[client.role_name]
-        comm_server = Process(target=start_server,
-                              name=f"{client.role_name}:server",
-                              kwargs={'host': local_host,
-                                      'port': local_port,
-                                      'root_role_name': client.role_name,
-                                      'root_role_name_url_dict': self.root_role_name_url_dict,
-                                      'logger_factory': self.logger_factory})
-        comm_server.start()
-        try:
+        with FedServer(host=local_host, port=local_port,
+                       root_role_name=client.role_name,
+                       root_role_name_url_dict=self.root_role_name_url_dict):
             self._set_client(client)
             with client.init():
                 ans = getattr(client, entry_func)(**entry_kwargs)
-        finally:
-            comm_server.terminate()
         return ans
 
     def set_checkpoint_home(self, home_dir: FileDir) -> "TCPEnv":
@@ -45,7 +37,6 @@ class TCPEnv(BaseEnv):
         return self
 
     def _default_setting(self) -> None:
-        self.set_logger_factory(LocalLoggerFactory)
         self.set_state_saver(LocalStateSaver())
 
     def _set_client(self, client: Client) -> None:

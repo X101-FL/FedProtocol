@@ -63,7 +63,7 @@ if __name__ == '__main__':
 
 
 """
-cd test/spark
+cd test/cluster/spark
 spark-submit --master local[1] --num-executors 2 --executor-memory 1g --executor-cores 1 --deploy-mode client \
              --conf spark.executorEnv.PYTHONPATH="/root/Projects/FedPrototype" \
              --conf spark.executor.memoryOverhead=600M \

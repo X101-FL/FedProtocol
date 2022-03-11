@@ -1,6 +1,6 @@
 import cloudpickle
 import pyspark.serializers
-from pyspark import SparkConf, SparkContext
+from pyspark import SparkContext
 
 from fedprototype import BaseClient
 
@@ -118,7 +118,7 @@ if __name__ == '__main__':
 
 
 """
-cd test/spark
+cd test/cluster/spark
 spark-submit --master yarn --num-executors 2 --executor-memory 1g --executor-cores 1 --deploy-mode client \
              --conf spark.executorEnv.PYTHONPATH="/root/Projects/FedPrototype" \
              --conf spark.executor.memoryOverhead=600M \

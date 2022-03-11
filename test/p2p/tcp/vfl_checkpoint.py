@@ -238,7 +238,7 @@ if __name__ == '__main__':
         .run(client=client, entry_func=args.entry_func, **entry_kwargs)
 
 
-# cd test/tcp
+# cd test/p2p/tcp
 # python vfl_checkpoint.py --role VFLA --entry_func train
 # python vfl_checkpoint.py --role VFLB --entry_func train
 

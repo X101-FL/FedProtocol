@@ -1,6 +1,7 @@
-from typing import Dict, Any
-from fedprototype.typing import Client
 from threading import Lock, Thread
+from typing import Any, Dict
+
+from fedprototype.typing import Client
 
 
 class ClientThread(Thread):
