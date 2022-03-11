@@ -13,9 +13,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from requests import Response as ReqResponse
 from requests.exceptions import ConnectionError
 
-from fedprototype.base.base_logger_factory import BaseLoggerFactory
 from fedprototype.envs.cluster.tcp.tcp_message_hub import MessageHub
-from fedprototype.tools.log import LocalLoggerFactory
 from fedprototype.typing import (
     Host,
     MessageBytes,
@@ -35,7 +33,6 @@ SUCCESS_RESPONSE = PlainTextResponse(content='OK', status_code=SUCCESS_CODE)
 
 def start_server(host: Host, port: Port, root_role_name: RootRoleName,
                  root_role_name_url_dict: Dict[RootRoleName, Url],
-                 logger_factory: BaseLoggerFactory = LocalLoggerFactory,
                  maximum_start_latency: int = 20,
                  beat_interval: int = 2,
                  alive_interval: int = 2):

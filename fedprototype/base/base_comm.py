@@ -1,11 +1,11 @@
 import copy
 from abc import ABC, abstractmethod
 from collections import defaultdict
+from logging import Logger
 from typing import DefaultDict, Dict, Generator, List, Optional, Tuple
 
 from fedprototype.typing import (
     Comm,
-    Logger,
     MessageName,
     MessageObj,
     ProtocolName,
@@ -17,13 +17,11 @@ from fedprototype.typing import (
     UpperRoleName,
 )
 
-_MESSAGE_BUFFER = DefaultDict[Receiver, List[Tuple[MessageName, MessageObj]]]
-
 
 class BaseComm(ABC):
 
     def __init__(self):
-        self._message_buffer: _MESSAGE_BUFFER = defaultdict(list)
+        self._message_buffer: DefaultDict[Receiver, List[Tuple[MessageName, MessageObj]]] = defaultdict(list)
         self.logger: Optional[Logger] = None
 
     def send(self,

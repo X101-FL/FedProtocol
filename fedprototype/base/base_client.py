@@ -1,11 +1,12 @@
 from abc import ABC
+from logging import Logger
 from typing import Any, Dict, Optional, Union
 
+from fedprototype.tools.log import getLogger
 from fedprototype.typing import (
     Client,
     Comm,
     Env,
-    Logger,
     ProtocolName,
     RoleName,
     StateDict,
@@ -104,12 +105,11 @@ class BaseClient(ABC):
         return self
 
     def _set_client_logger(self) -> Client:
-        self.logger = self.env.logger_factory.get_logger(self.track_path)
+        self.logger = getLogger(f"Client.{self.track_path}")
         return self
 
     def _set_comm_logger(self) -> Client:
-        self.comm.logger = self.env.logger_factory \
-            .get_logger(f"[{self.comm.__class__.__name__}] {self.track_path}")
+        self.comm.logger = getLogger(f"Frame.Comm.{self.track_path}")
         return self
 
     def _active_comm(self) -> Client:

@@ -1,6 +1,6 @@
 import typing
 from typing import TYPE_CHECKING
-from logging import Logger
+
 
 if TYPE_CHECKING:  # 防止使用类型检查导致的循环导入
     # Pycharm会警告下面的导入是无用的，但是不要删除
@@ -10,7 +10,6 @@ if TYPE_CHECKING:  # 防止使用类型检查导致的循环导入
     from fedprototype.base.base_comm import BaseComm
     from fedprototype.base.base_env import BaseEnv
     from fedprototype.base.base_state_saver import BaseStateSaver
-    from fedprototype.base.base_logger_factory import BaseLoggerFactory
 
 ProtocolName = str
 RoleName = str
@@ -26,31 +25,35 @@ MessageName = str
 MessageID = typing.Tuple[Sender, Receiver, MessageName]
 MessageObj = typing.Any
 MessageBytes = bytes
+PartitionID = int
+PartitionNum = int
+StageID = int
+TaskAttemptNum = int
+JobID = str
 StateDict = typing.Dict[str, typing.Any]
 
 ##################################################################
 # for pycharm
 ##################################################################
 
-Client = 'BaseClient'
-Comm = 'BaseComm'
-Env = 'BaseEnv'
+# Client = 'BaseClient'
+# Comm = 'BaseComm'
+# Env = 'BaseEnv'
 
-StateKey = str
-StateSaver = 'BaseStateSaver'
-LoggerFactory = 'BaseLoggerFactory'
+# StateKey = str
+# StateSaver = 'BaseStateSaver'
+# LoggerFactory = 'BaseLoggerFactory'
 
 ##################################################################
 # for vscode
 ##################################################################
 
-# Client = typing.TypeVar('Client', bound='BaseClient')
-# Comm = typing.TypeVar('Comm', bound='BaseComm')
-# Env = typing.TypeVar('Env', bound='BaseEnv')
+Client = typing.TypeVar('Client', bound='BaseClient')
+Comm = typing.TypeVar('Comm', bound='BaseComm')
+Env = typing.TypeVar('Env', bound='BaseEnv')
 
-# StateKey = str
-# StateSaver = typing.TypeVar('StateSaver', bound='BaseStateSaver')
-# LoggerFactory = typing.TypeVar('LoggerFactory', bound='BaseLoggerFactory')
+StateKey = str
+StateSaver = typing.TypeVar('StateSaver', bound='BaseStateSaver')
 
 FileDir = str  # 文件夹路径
 FileName = str  # 单纯文件名，不带文件路径
@@ -59,29 +62,3 @@ FilePath = str  # 完整文件路径，文件夹路径 + 文件名
 Host = str
 Port = int
 Url = str
-
-__all__ = ['RoleName',
-           'RoleNamePrefix',
-           'TrackPath',
-           'SubRoleName',
-           'UpperRoleName',
-           'MessageSpace',
-           'Receiver',
-           'Sender',
-           'MessageName',
-           'MessageID',
-           'MessageObj',
-           'StateDict',
-           'Client',
-           'Comm',
-           'Env',
-           'StateKey',
-           'StateSaver',
-           'LoggerFactory',
-           'Logger',
-           'FileDir',
-           'FileName',
-           'FilePath',
-           'Host',
-           'Port',
-           'Url']

@@ -4,7 +4,6 @@ from typing import Any, Dict
 from fedprototype.base.base_env import BaseEnv
 from fedprototype.envs.cluster.tcp.tcp_comm import TCPComm
 from fedprototype.envs.cluster.tcp.tcp_http_server import start_server
-from fedprototype.tools.log import LocalLoggerFactory
 from fedprototype.tools.state_saver import LocalStateSaver
 from fedprototype.typing import Client, FileDir, Host, Port, RoleName, RootRoleName, Url
 
