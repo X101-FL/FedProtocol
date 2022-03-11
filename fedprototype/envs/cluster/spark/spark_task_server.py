@@ -1,22 +1,26 @@
+import logging
 import os
 import pickle
 import signal
 import time
+import typing
 from multiprocessing import Process
 from typing import Any, Callable, Dict, List, Tuple
 
 import uvicorn
 from fastapi import Body, FastAPI, File, Form, Response
 from fastapi.exceptions import HTTPException
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.responses import JSONResponse
 from pyspark import TaskContext
 
-from fedprototype.base.base_client import BaseClient
-from fedprototype.base.base_logger_factory import BaseLoggerFactory
+if typing.TYPE_CHECKING:
+    from .spark_env import SparkEnv
+
+from fedprototype.envs.cluster.spark.constants import SUCCESS_RESPONSE
 from fedprototype.envs.cluster.spark.spark_message_hub import MessageHub
 from fedprototype.tools.func import get_free_ip_port
 from fedprototype.tools.io import post_pro
-from fedprototype.tools.log import LocalLoggerFactory
+from fedprototype.tools.log import getLogger
 from fedprototype.typing import (
     Host,
     MessageBytes,
@@ -30,21 +34,17 @@ from fedprototype.typing import (
     Url,
 )
 
-SUCCESS_CODE = 200
-SUCCESS_RESPONSE = PlainTextResponse(content='OK', status_code=SUCCESS_CODE)
-
 
 def _start_server(host: Host,
                   port: Port,
                   root_role_name: RootRoleName,
                   task_pid: int,
-                  logger_factory: BaseLoggerFactory = LocalLoggerFactory,
                   wait_for_target_task_interval: int = 5):
     root_role_name_url_dict: Dict[RootRoleName, Url] = {}
     message_hub: MessageHub = MessageHub()
 
-    logger = logger_factory.get_logger("[SparkServer]")
-    logger.info(f"root_role_name={root_role_name}")
+    logger = getLogger(f"Frame.Server.{root_role_name}")
+    logger.info(f"start server...")
 
     task_group_info: Dict[str, Any] = {}
 
@@ -52,26 +52,26 @@ def _start_server(host: Host,
 
     @app.post("/ping")
     def ping():
-        logger.debug("ping ...")
+        logger.info("ping ...")
         return SUCCESS_RESPONSE
 
     @app.post("/task_group_failed")
     def task_group_failed():
-        logger.debug(f"fail_task.....")
+        logger.info(f"fail_task.....")
         os.kill(task_pid, signal.SIGKILL)
         os.kill(os.getpid(), signal.SIGKILL)
         return SUCCESS_RESPONSE
 
     @app.post("/task_group_successed")
     def task_group_successed():
-        print(f"port:{port} task_group_successed ...")
+        logger.info(f"port:{port} task_group_successed ...")
         task_group_info['is_successed'] = True
         return SUCCESS_RESPONSE
 
     @app.post("/wait_for_group_success")
     def wait_for_group_success():
         while not task_group_info.get('is_successed', False):
-            print(f"port:{port} wait_for_group_success ...")
+            logger.info(f"port:{port} wait_for_group_success ...")
             time.sleep(2)
         return SUCCESS_RESPONSE
 
@@ -84,7 +84,7 @@ def _start_server(host: Host,
     @app.post("/set_message_space")
     def set_message_space(message_space: MessageSpace = Body(...),
                           root_role_bind_mapping: Dict[RoleName, RootRoleName] = Body(...)):
-        logger.debug(f"set_message_space : message_space={message_space}, root_role_bind_mapping={root_role_bind_mapping}")
+        logger.info(f"set_message_space : message_space={message_space}, root_role_bind_mapping={root_role_bind_mapping}")
         message_hub.get_message_space_manager(message_space)\
                    .set_role_bind_mapping(root_role_bind_mapping)
         return SUCCESS_RESPONSE
@@ -207,7 +207,7 @@ def _start_server(host: Host,
             raise HTTPException(detail=f"{detail}. {err_detail}", status_code=status_code)
 
     uvicorn.run(app=app, host=host, port=port, debug=True,
-                access_log=True, log_level=logger.level, use_colors=True)
+                access_log=True, log_level=logging.ERROR, use_colors=True)
 
 
 class SparkTaskServer:
@@ -216,9 +216,10 @@ class SparkTaskServer:
         self.task_context = task_context
         self._process: Process = None
         self._server_url: Url = None
+        self.logger = getLogger("Frame.Spark.Task.Server")
 
     def _start(self):
-        print(f"spark server task_attempt_num:{self.task_context.attemptNumber()}, root_role_name:{self.spark_env.root_role_name}, task_pid:{os.getpid()}")
+        self.logger.info(f"spark server task_attempt_num:{self.task_context.attemptNumber()}, root_role_name:{self.spark_env.root_role_name}, task_pid:{os.getpid()}")
         host, port = get_free_ip_port()
         self._server_url = f"http://{host}:{port}"
         self._process = Process(target=_start_server,
@@ -259,7 +260,7 @@ class SparkTaskServer:
         post_pro(url=f"{self._server_url}/wait_for_group_success")
 
     def _close(self, success: bool = True):
-        print(f"close task task_attempt_num:{self.task_context.attemptNumber()}, root_role_name:{self.spark_env.root_role_name}, success : {success}")
+        self.logger.info(f"close task task_attempt_num:{self.task_context.attemptNumber()}, root_role_name:{self.spark_env.root_role_name}, success : {success}")
         if success:
             self._wait_for_exit()
         self._process.terminate()
@@ -275,44 +276,3 @@ class SparkTaskServer:
             self._close(success=True)
         else:
             self._close(success=False)
-
-
-if __name__ == "__main__":
-    import sys
-
-    from fedprototype.envs.cluster.spark.spark_env import SparkEnv
-
-    spark_env = SparkEnv() \
-        .add_client('PartA') \
-        .add_client('PartB') \
-        .set_job_id('dev server')
-    spark_env.coordinater_url = "http://127.0.0.1:6609"
-    spark_env.root_role_name = sys.argv[1]
-    spark_env.partition_num = 3
-
-    class _TaskContext:
-
-        def stageId(self):
-            return 0
-
-        def partitionId(self):
-            return 2
-
-        def taskAttemptId(self):
-            return "0.0"
-
-    task_context = _TaskContext()
-
-    post_pro(url="http://127.0.0.1:6609/register_driver",
-             json={'job_id': 'dev server',
-                   'partition_num': 3,
-                   'root_role_name_set': ['PartA', 'PartB'],
-                   'root_role_name': spark_env.root_role_name})
-
-    with SparkTaskServer(spark_env, task_context) as sts:
-        import time
-        time.sleep(1000)
-
-# cd /root/Projects/FedPrototype/fedprototype/envs/cluster/spark
-# python spark_task_server.py PartA
-# python spark_task_server.py PartB

@@ -5,7 +5,6 @@ from fedprototype.base.base_env import BaseEnv
 from fedprototype.envs.local.client_thread import ClientThread
 from fedprototype.envs.local.local_comm import LocalComm
 from fedprototype.envs.local.local_message_hub import MessageHub
-from fedprototype.tools.log import LocalLoggerFactory
 from fedprototype.tools.state_saver import LocalStateSaver
 from fedprototype.typing import Client, FileDir, RoleName
 

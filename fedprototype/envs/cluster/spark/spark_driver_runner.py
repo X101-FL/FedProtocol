@@ -10,13 +10,13 @@ from threading import Thread
 from typing import Any, Callable
 
 from py4j.java_gateway import JavaObject
-from pyspark import SparkContext
 from pyspark.rdd import RDD
 
+from fedprototype.envs.cluster.spark.constants import *
 from fedprototype.envs.cluster.spark.spark_task_runner import SparkTaskRunner
 from fedprototype.tools.io import post_pro
 from fedprototype.typing import Client, JobID, RootRoleName, Url
-from fedprototype.envs.cluster.spark.constants import *
+from fedprototype.tools.log import getLogger
 
 
 class HeartbeatThread(Thread):
@@ -29,6 +29,7 @@ class HeartbeatThread(Thread):
         self.job_id = job_id
         self.root_role_name = root_role_name
         self._keep_on = True
+        self.logger = getLogger(f"Frame.Spark.Driver.Heartbeat")
 
     def run(self) -> None:
         while self._keep_on:
@@ -37,15 +38,15 @@ class HeartbeatThread(Thread):
                            error='None',
                            url=f"{self.coordinater_url}/driver/heartbeat",
                            json={'job_id': self.job_id, 'root_role_name': self.root_role_name})
-            print(f"heartbeat_res:{res}")
+            self.logger.debug(f"heartbeat_res:{res}")
             if res is None:
-                print(f"lost connect with coordinater ...")
+                self.logger.error(f"lost connect with coordinater:{self.coordinater_url} ...")
                 os.kill(os.getpid(), signal.SIGTERM)
             elif res['state'] == EXITING:
                 if res['is_successed']:
                     self.stop()
                 else:
-                    print(f"federated job is failed ...")
+                    self.logger.error(f"federated job is failed ...")
                     os.kill(os.getpid(), signal.SIGTERM)
             else:
                 time.sleep(5)
@@ -62,6 +63,7 @@ class SparkDriverRunner:
         self._job_listener: JavaObject = None
         self._heartbeat_thread: HeartbeatThread = None
         self._is_driver_registed: bool = False
+        self.logger = getLogger("Frame.Spark.Driver.Runner")
 
     def run(self,
             client: Client,
@@ -88,7 +90,7 @@ class SparkDriverRunner:
                        'partition_num': self.spark_env.partition_num,
                        'root_role_name_set': list(self.spark_env.root_role_name_set),
                        'root_role_name': self.spark_env.root_role_name})
-        print(f"register driver job_id:{self.job_id}, role_name:{self.spark_env.root_role_name} successfully")
+        self.logger.info(f"register driver job_id:{self.job_id}, role_name:{self.spark_env.root_role_name} successfully")
         self._is_driver_registed = True
 
     def _finish_driver(self, success: bool) -> None:
@@ -102,7 +104,7 @@ class SparkDriverRunner:
             res = post_pro(url=f"{self.coordinater_url}/driver/wait_for_running",
                            json={'job_id': self.job_id,
                                  'root_role_name': self.spark_env.root_role_name})
-            print(f"wait_for_running:{res}")
+            self.logger.info(f"wait_for_running:{res}")
             if res['state'] == STANDBY_FOR_RUN:
                 time.sleep(3)
             elif res['state'] == RUNNING:
@@ -115,7 +117,7 @@ class SparkDriverRunner:
             res = post_pro(url=f"{self.coordinater_url}/driver/wait_for_finish",
                            json={'job_id': self.job_id,
                                  'root_role_name': self.spark_env.root_role_name})
-            print(f"wait_for_finish:{res}")
+            self.logger.info(f"wait_for_finish:{res}")
             if res['state'] == STANDBY_FOR_EXIT:
                 time.sleep(3)
             elif res['state'] == EXITING:

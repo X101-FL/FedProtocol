@@ -5,10 +5,9 @@ from pyspark.rdd import RDD
 from fedprototype.base.base_env import BaseEnv
 from fedprototype.envs.cluster.spark.spark_comm import SparkComm
 from fedprototype.envs.cluster.spark.spark_driver_runner import SparkDriverRunner
-from fedprototype.tools.log import LocalLoggerFactory
 from fedprototype.tools.state_saver import LocalStateSaver
 from fedprototype.typing import Client, FileDir, RoleName, RootRoleName, Url
-
+from fedprototype.tools.log import getLogger
 
 class SparkEnv(BaseEnv):
     def __init__(self):
@@ -18,6 +17,7 @@ class SparkEnv(BaseEnv):
         self.root_role_name: RootRoleName = None
         self.partition_num: int = None
         self.coordinater_url: Url = None
+        self.logger = getLogger("Frame.Spark.Env")
         self._default_setting()
 
     def add_client(self, role_name: RoleName) -> 'SparkEnv':
@@ -52,7 +52,6 @@ class SparkEnv(BaseEnv):
         return self
 
     def _default_setting(self) -> None:
-        self.set_logger_factory(LocalLoggerFactory)
         self.set_state_saver(LocalStateSaver())
 
     def _set_client(self, client: Client, server_url: Url) -> None:

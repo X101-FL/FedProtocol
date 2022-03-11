@@ -1,8 +1,8 @@
 import os
 
 from fedprototype.base.base_state_saver import BaseStateSaver
-from fedprototype.tools.io import save_pkl, load_pkl
-from fedprototype.typing import StateKey, FilePath, FileDir, StateDict
+from fedprototype.tools.io import load_pkl, save_pkl
+from fedprototype.typing import FileDir, FilePath, StateDict, StateKey
 
 
 class LocalStateSaver(BaseStateSaver):

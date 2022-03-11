@@ -1,6 +1,6 @@
 import typing
 from typing import TYPE_CHECKING
-from logging import Logger
+
 
 if TYPE_CHECKING:  # 防止使用类型检查导致的循环导入
     # Pycharm会警告下面的导入是无用的，但是不要删除
@@ -10,7 +10,6 @@ if TYPE_CHECKING:  # 防止使用类型检查导致的循环导入
     from fedprototype.base.base_comm import BaseComm
     from fedprototype.base.base_env import BaseEnv
     from fedprototype.base.base_state_saver import BaseStateSaver
-    from fedprototype.base.base_logger_factory import BaseLoggerFactory
 
 ProtocolName = str
 RoleName = str
@@ -55,7 +54,6 @@ Env = typing.TypeVar('Env', bound='BaseEnv')
 
 StateKey = str
 StateSaver = typing.TypeVar('StateSaver', bound='BaseStateSaver')
-LoggerFactory = typing.TypeVar('LoggerFactory', bound='BaseLoggerFactory')
 
 FileDir = str  # 文件夹路径
 FileName = str  # 单纯文件名，不带文件路径
