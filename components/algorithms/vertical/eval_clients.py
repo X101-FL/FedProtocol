@@ -1,4 +1,4 @@
-from fedprototype import BaseClient
+from fedprotocol import BaseClient
 
 
 class ActiveEvalClient(BaseClient):

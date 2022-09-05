@@ -1,4 +1,4 @@
-from fedprototype import BaseClient
+from fedprotocol import BaseClient
 
 
 class ClientA(BaseClient):
@@ -30,7 +30,7 @@ def get_args():
 
 
 if __name__ == '__main__':
-    from fedprototype.envs import TCPEnv
+    from fedprotocol.envs import TCPEnv
 
     args = get_args()
     if args.role == ClientA.__name__:

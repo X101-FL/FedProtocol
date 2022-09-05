@@ -4,8 +4,8 @@ import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 
-from fedprototype import BaseClient
-from fedprototype.typing import Client, StateDict
+from fedprotocol import BaseClient
+from fedprotocol.typing import Client, StateDict
 
 
 class PsiA(BaseClient):
@@ -210,7 +210,7 @@ def get_args():
 
 
 if __name__ == '__main__':
-    from fedprototype.envs import TCPEnv
+    from fedprotocol.envs import TCPEnv
     args = get_args()
 
     A_ID_train, A_X_train, Y_train, \

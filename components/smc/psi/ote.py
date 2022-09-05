@@ -5,7 +5,7 @@ from components.smc.tools.arr import rand_binary_arr
 from components.smc.tools.pack import pack, unpack
 from components.smc.tools.serialize import *
 from encrypt.shake import ShakeCipher
-from fedprototype import BaseClient
+from fedprotocol import BaseClient
 
 
 class OTESender(BaseClient):

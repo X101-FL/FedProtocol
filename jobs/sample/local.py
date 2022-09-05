@@ -33,7 +33,7 @@ def get_passive_run_kwargs():
 
 
 if __name__ == '__main__':
-    from fedprototype.envs import LocalEnv
+    from fedprotocol.envs import LocalEnv
 
     LocalEnv() \
         .add_client(client=ActiveClient(get_active_args()), **get_active_run_kwargs()) \

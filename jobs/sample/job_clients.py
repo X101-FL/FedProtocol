@@ -1,4 +1,4 @@
-from fedprototype import BaseClient
+from fedprotocol import BaseClient
 from components.smc.psi.two_party_clients import Party1, Party2
 from components.algorithms.vertical.train_clients import ActiveTrainClient, PassiveTrainClient
 from components.algorithms.vertical.eval_clients import ActiveEvalClient, PassiveEvalClient

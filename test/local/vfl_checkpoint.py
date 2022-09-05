@@ -4,8 +4,8 @@ import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 
-from fedprototype import BaseClient
-from fedprototype.typing import Client, StateDict
+from fedprotocol import BaseClient
+from fedprotocol.typing import Client, StateDict
 
 
 class PsiA(BaseClient):
@@ -201,7 +201,7 @@ def make_dataset():
 
 
 if __name__ == '__main__':
-    from fedprototype.envs import LocalEnv
+    from fedprotocol.envs import LocalEnv
 
     A_ID_train, A_X_train, Y_train, \
         A_ID_test, A_X_test, Y_test, \

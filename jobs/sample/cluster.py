@@ -4,7 +4,7 @@ import time
 import numpy as np
 import torch
 
-from fedprototype import BaseClient
+from fedprotocol import BaseClient
 
 
 class ActiveClient(BaseClient):
@@ -63,7 +63,7 @@ def get_args():
 
 
 if __name__ == '__main__':
-    from fedprototype.envs.cluster.tcp import TCPEnv
+    from fedprotocol.envs.cluster.tcp import TCPEnv
 
     args = get_args()
     if args.role == 'active':

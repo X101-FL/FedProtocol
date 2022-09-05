@@ -3,7 +3,7 @@ import typing as T
 
 from components.smc.psi.cuckoo import CuckooHashTable, position_hash
 from components.smc.psi.oprf import OPRFClient, OPRFServer
-from fedprototype import BaseClient
+from fedprotocol import BaseClient
 
 
 class PSIServer(BaseClient):

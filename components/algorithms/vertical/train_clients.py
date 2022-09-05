@@ -8,7 +8,7 @@ from torch.utils.data.dataset import TensorDataset
 
 from components.algorithms.vertical.models import ActiveModel, PassiveModel
 from encrypt.paillier import PaillierKeypair, PaillierPublicKey
-from fedprototype import BaseClient
+from fedprotocol import BaseClient
 
 
 class ActiveTrainClient(BaseClient):

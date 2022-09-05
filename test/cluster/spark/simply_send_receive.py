@@ -1,8 +1,8 @@
 import cloudpickle
 import pyspark.serializers
 from pyspark import SparkContext
-from fedprototype import BaseClient
-from fedprototype.envs import SparkEnv
+from fedprotocol import BaseClient
+from fedprotocol.envs import SparkEnv
 
 pyspark.serializers.cloudpickle = cloudpickle
 

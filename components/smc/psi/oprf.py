@@ -11,7 +11,7 @@ from components.smc.tools.serialize import (
     bytes_to_bit_arr,
     int_to_bytes,
 )
-from fedprototype import BaseClient
+from fedprotocol import BaseClient
 
 
 class OPRFClient(BaseClient):

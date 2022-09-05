@@ -3,7 +3,7 @@ import time
 
 import numpy as np
 
-from fedprototype import BaseClient
+from fedprotocol import BaseClient
 from tools.log import LoggerFactory
 
 
@@ -95,7 +95,7 @@ def get_passive_run_kwargs(passive_id):
 
 
 if __name__ == "__main__":
-    from fedprototype.envs import LocalEnv
+    from fedprotocol.envs import LocalEnv
 
     PASSIVE_NUM = 4
     LoggerFactory.LEVEL = logging.INFO

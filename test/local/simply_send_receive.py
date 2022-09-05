@@ -1,4 +1,4 @@
-from fedprototype import BaseClient
+from fedprotocol import BaseClient
 
 
 class ClientA(BaseClient):
@@ -31,7 +31,7 @@ class ClientB(BaseClient):
 
 
 if __name__ == '__main__':
-    from fedprototype.envs import LocalEnv
+    from fedprotocol.envs import LocalEnv
 
     LocalEnv() \
         .add_client(ClientA()) \

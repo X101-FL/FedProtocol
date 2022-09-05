@@ -11,7 +11,7 @@ from components.algorithms.vertical.train_clients import (
     PassiveTrainClient,
 )
 from components.smc.psi.psi import PSIClient, PSIServer
-from fedprototype import BaseClient
+from fedprotocol import BaseClient
 from tools.log import LoggerFactory
 
 
@@ -106,7 +106,7 @@ def get_run_kwargs(data_dir: str) -> T.Tuple[dict, dict]:
 
 
 if __name__ == "__main__":
-    from fedprototype.envs import LocalEnv
+    from fedprotocol.envs import LocalEnv
 
     random.seed(42)
     np.random.seed(31)

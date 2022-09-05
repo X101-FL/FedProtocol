@@ -1,4 +1,4 @@
-from fedprototype import BaseClient
+from fedprotocol import BaseClient
 
 
 class Level2ClientA(BaseClient):
@@ -82,7 +82,7 @@ class Level1ClientB(BaseClient):
 
 
 if __name__ == '__main__':
-    from fedprototype.envs import TCPEnv
+    from fedprotocol.envs import TCPEnv
 
     import sys
     role = sys.argv[1]
