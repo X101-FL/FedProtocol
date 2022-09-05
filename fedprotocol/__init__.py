@@ -1,5 +1,5 @@
-from fedprotocol.base.base_client import BaseClient
-from fedprotocol.base.base_state_saver import BaseStateSaver
+from fedprotocol.base.base_worker import BaseWorker
+from fedprotocol.base.base_state_manager import BaseStateManager
 from fedprotocol.envs import Env
 
 
@@ -8,4 +8,4 @@ def set_env(name: str = 'Local'):
     return Env.set(name)
 
 
-__all__ = ['BaseClient', 'BaseStateSaver', 'Env', 'set_env']
+__all__ = ['BaseWorker', 'BaseStateManager', 'Env', 'set_env']

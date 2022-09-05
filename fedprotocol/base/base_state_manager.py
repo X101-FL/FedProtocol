@@ -1,17 +1,18 @@
 from abc import ABC, abstractmethod
 from typing import Optional, Union
 
-from fedprotocol import BaseClient
+from fedprotocol import BaseWorker
 from fedprotocol.typing import StateDict, StateKey
 
 
-class BaseStateSaver(ABC):
-
+class BaseStateManager(ABC):
     def save(self, state_key: StateKey, state_dict: StateDict) -> None:
-        state_dict = BaseStateSaver._client_to_state_dict(state_dict)
+        state_dict = BaseStateManager._worker_to_state_dict(state_dict)
         self._save(state_key, state_dict)
 
-    def load(self, state_key: StateKey, non_exist: Union[str, StateDict] = 'raise') -> Optional[StateDict]:
+    def load(
+        self, state_key: StateKey, non_exist: Union[str, StateDict] = 'raise'
+    ) -> Optional[StateDict]:
         """
         从文件系统中加载python对象
         :param state_key: 状态保存、加载的唯一主键
@@ -32,14 +33,14 @@ class BaseStateSaver(ABC):
             return non_exist
 
     @staticmethod
-    def _client_to_state_dict(state_dict: Optional[StateDict]) -> Optional[StateDict]:
+    def _worker_to_state_dict(state_dict: Optional[StateDict]) -> Optional[StateDict]:
         if state_dict is None:
             return None
         result_state_dict = {}
         for state_key, state_value in state_dict.items():
-            if isinstance(state_value, BaseClient):
+            if isinstance(state_value, BaseWorker):
                 state_value = state_value.state_dict()
-                state_value = BaseStateSaver._client_to_state_dict(state_value)
+                state_value = BaseStateManager._worker_to_state_dict(state_value)
             result_state_dict[state_key] = state_value
         return result_state_dict
 

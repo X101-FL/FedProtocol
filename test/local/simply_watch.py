@@ -1,8 +1,8 @@
 import fedprotocol as fp
-from fedprotocol import BaseClient
+from fedprotocol import BaseWorker
 
 
-class ClientA(BaseClient):
+class ClientA(BaseWorker):
     def __init__(self):
         super().__init__("SimplyWatch", 'PartA')
 
@@ -16,7 +16,7 @@ class ClientA(BaseClient):
             assert message_obj == f"hello PartA I'm {sender}"
 
 
-class ClientB(BaseClient):
+class ClientB(BaseWorker):
     def __init__(self, index):
         super().__init__("SimplyWatch", f'PartB.{index}')
 
@@ -27,8 +27,8 @@ class ClientB(BaseClient):
 if __name__ == '__main__':
     env = fp.set_env(name='Local')
     for index in range(5):
-        env.add_client(ClientB(index))
-    env.add_client(ClientA())
+        env.add_worker(ClientB(index))
+    env.add_worker(ClientA())
     env.run()
 
 # PYTHONPATH=. python test/local/simply_watch.py

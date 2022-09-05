@@ -3,10 +3,10 @@ import typing as T
 
 from components.smc.psi.cuckoo import CuckooHashTable, position_hash
 from components.smc.psi.oprf import OPRFClient, OPRFServer
-from fedprotocol import BaseClient
+from fedprotocol import BaseWorker
 
 
-class PSIServer(BaseClient):
+class PSIServer(BaseWorker):
     oprf_server: OPRFServer
     words: T.List[bytes]
 
@@ -16,7 +16,7 @@ class PSIServer(BaseClient):
 
     def init(self):
         self.oprf_server = OPRFServer(512)
-        self.set_sub_client(
+        self.set_sub_worker(
             self.oprf_server,
             role_rename_dict={"OPRFServer": "PSIServer", "OPRFClient": "PSIClient"},
         )
@@ -63,7 +63,7 @@ class PSIServer(BaseClient):
         del self.words
 
 
-class PSIClient(BaseClient):
+class PSIClient(BaseWorker):
     oprf_client: OPRFClient
     n: int
     table: T.List[T.Optional[bytes]]
@@ -99,7 +99,7 @@ class PSIClient(BaseClient):
 
     def init(self) -> None:
         self.oprf_client = OPRFClient(512)
-        self.set_sub_client(
+        self.set_sub_worker(
             self.oprf_client,
             role_rename_dict={"OPRFServer": "PSIServer", "OPRFClient": "PSIClient"},
         )

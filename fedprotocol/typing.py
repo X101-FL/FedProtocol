@@ -1,15 +1,15 @@
-import typing
-from typing import TYPE_CHECKING
+import typing as T
+from typing import TYPE_CHECKING, DefaultDict
 
 
 if TYPE_CHECKING:  # 防止使用类型检查导致的循环导入
     # Pycharm会警告下面的导入是无用的，但是不要删除
     # 否则Pycharm的类型补全会无法使用
     # Pycharm版本需要升级到2021.3
-    from fedprotocol.base.base_client import BaseClient
+    from fedprotocol.base.base_worker import BaseWorker
     from fedprotocol.base.base_comm import BaseComm
     from fedprotocol.base.base_env import BaseEnv
-    from fedprotocol.base.base_state_saver import BaseStateSaver
+    from fedprotocol.base.base_state_manager import BaseStateManager
 
 ProtocolName = str
 RoleName = str
@@ -18,19 +18,23 @@ RoleNamePrefix = str
 TrackPath = str
 SubRoleName = str
 UpperRoleName = str
-MessageSpace = str
+
 Receiver = str
 Sender = str
+
 MessageName = str
-MessageID = typing.Tuple[Sender, Receiver, MessageName]
-MessageObj = typing.Any
+MessageSpace = str
+MessageID = T.Tuple[Sender, Receiver, MessageName]
+MessageObj = T.Any
 MessageBytes = bytes
+MessageBuffer = T.DefaultDict[Receiver, T.List[T.Tuple[MessageName, MessageObj]]]
+
 PartitionID = int
 PartitionNum = int
 StageID = int
 TaskAttemptNum = int
 JobID = str
-StateDict = typing.Dict[str, typing.Any]
+StateDict = T.Dict[str, T.Any]
 
 ##################################################################
 # for pycharm
@@ -48,12 +52,12 @@ StateDict = typing.Dict[str, typing.Any]
 # for vscode
 ##################################################################
 
-Client = typing.TypeVar('Client', bound='BaseClient')
-Comm = typing.TypeVar('Comm', bound='BaseComm')
-Env = typing.TypeVar('Env', bound='BaseEnv')
+Worker = T.TypeVar('Worker', bound='BaseWorker')
+Comm = T.TypeVar('Comm', bound='BaseComm')
+Env = T.TypeVar('Env', bound='BaseEnv')
 
 StateKey = str
-StateSaver = typing.TypeVar('StateSaver', bound='BaseStateSaver')
+StateManager = T.TypeVar('StateManager', bound='BaseStateManager')
 
 FileDir = str  # 文件夹路径
 FileName = str  # 单纯文件名，不带文件路径

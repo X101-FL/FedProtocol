@@ -3,10 +3,10 @@ from Crypto.PublicKey import ECC
 from components.smc.tools.pack import pack, unpack
 from components.smc.tools.serialize import bytes_to_key, key_to_bytes, point_to_bytes
 from encrypt.shake import ShakeCipher
-from fedprotocol import BaseClient
+from fedprotocol import BaseWorker
 
 
-class BaseSender(BaseClient):
+class BaseSender(BaseWorker):
     def __init__(self):
         super().__init__("BaseSender")
 
@@ -39,7 +39,7 @@ class BaseSender(BaseClient):
         pass
 
 
-class BaseReceiver(BaseClient):
+class BaseReceiver(BaseWorker):
     def __init__(self):
         super().__init__("BaseReceiver")
 

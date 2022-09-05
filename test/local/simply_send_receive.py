@@ -1,8 +1,8 @@
 import fedprotocol as fp
-from fedprotocol import BaseClient
+from fedprotocol import BaseWorker
 
 
-class ClientA(BaseClient):
+class ClientA(BaseWorker):
     def __init__(self):
         super().__init__('SimplyTest', 'PartA')
 
@@ -16,7 +16,7 @@ class ClientA(BaseClient):
         assert message_obj == 'YouYouYou'
 
 
-class ClientB(BaseClient):
+class ClientB(BaseWorker):
     def __init__(self):
         super().__init__('SimplyTest', 'PartB')
 
@@ -31,6 +31,6 @@ class ClientB(BaseClient):
 
 
 if __name__ == '__main__':
-    fp.set_env(name='Local').add_client(ClientA()).add_client(ClientB()).run()
+    fp.set_env(name='Local').add_worker(ClientA()).add_worker(ClientB()).run()
 
 # PYTHONPATH=. python test/local/simply_send_receive.py

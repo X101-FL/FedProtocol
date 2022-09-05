@@ -3,12 +3,12 @@ import pyspark.serializers
 from pyspark import SparkContext
 
 import fedprotocol as fp
-from fedprotocol import BaseClient
+from fedprotocol import BaseWorker
 
 pyspark.serializers.cloudpickle = cloudpickle
 
 
-class Level2ClientA(BaseClient):
+class Level2ClientA(BaseWorker):
 
     def __init__(self):
         super().__init__("Level2", '2A')
@@ -20,16 +20,16 @@ class Level2ClientA(BaseClient):
                        flush=True)
 
 
-class Level1ClientA(BaseClient):
+class Level1ClientA(BaseWorker):
     def __init__(self):
         super().__init__("Level1", '1A')
         self.l2_client1 = Level2ClientA().rename_protocol("Level2#1")
         self.l2_client2 = Level2ClientA().rename_protocol("Level2#2")
 
     def init(self):
-        self.set_sub_client(self.l2_client1,
+        self.set_sub_worker(self.l2_client1,
                             role_bind_mapping={"2A": "1A", "2B": "1B"})
-        self.set_sub_client(self.l2_client2,
+        self.set_sub_worker(self.l2_client2,
                             role_bind_mapping={"2A": "1A", "2B": "1B"})
         return self
 
@@ -49,7 +49,7 @@ class Level1ClientA(BaseClient):
             self.l2_client2.run()
 
 
-class Level2ClientB(BaseClient):
+class Level2ClientB(BaseWorker):
 
     def __init__(self):
         super().__init__("Level2", '2B')
@@ -63,16 +63,16 @@ class Level2ClientB(BaseClient):
         self.comm.clear()
 
 
-class Level1ClientB(BaseClient):
+class Level1ClientB(BaseWorker):
     def __init__(self):
         super().__init__("Level1", '1B')
         self.l2_client1 = Level2ClientB().rename_protocol("Level2#1")
         self.l2_client2 = Level2ClientB().rename_protocol("Level2#2")
 
     def init(self):
-        self.set_sub_client(self.l2_client1,
+        self.set_sub_worker(self.l2_client1,
                             role_bind_mapping={"2A": "1A", "2B": "1B"})
-        self.set_sub_client(self.l2_client2,
+        self.set_sub_worker(self.l2_client2,
                             role_bind_mapping={"2A": "1A", "2B": "1B"})
         return self
 
@@ -110,8 +110,8 @@ if __name__ == '__main__':
     rdd = get_client_spark_rdd(args)
 
     ans = fp.set_env(name='Spark') \
-        .add_client(role_name='1A') \
-        .add_client(role_name='1B') \
+        .add_worker(role_name='1A') \
+        .add_worker(role_name='1B') \
         .set_coordinater_url("http://127.0.0.1:6609") \
         .set_job_id(job_id=client.protocol_name) \
         .run(client=client, rdd=rdd)

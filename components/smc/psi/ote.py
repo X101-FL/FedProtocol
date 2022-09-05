@@ -5,10 +5,10 @@ from components.smc.tools.arr import rand_binary_arr
 from components.smc.tools.pack import pack, unpack
 from components.smc.tools.serialize import *
 from encrypt.shake import ShakeCipher
-from fedprotocol import BaseClient
+from fedprotocol import BaseWorker
 
 
-class OTESender(BaseClient):
+class OTESender(BaseWorker):
     """ Oblivious transfer extension"""
 
     # s (select bits for prepare stage)
@@ -29,7 +29,7 @@ class OTESender(BaseClient):
         self.base_receiver = BaseReceiver()
 
     def init(self) -> None:
-        self.set_sub_client(
+        self.set_sub_worker(
             self.base_receiver,
             role_rename_dict={"BaseSender": "OTEReceiver", "BaseReceiver": "OTESender"},
         )
@@ -60,7 +60,7 @@ class OTESender(BaseClient):
 
     def ote_init(self, m: int, q_cols: T.List[bytes]) -> None:
         ote_receiver = OTEReceiver(self._s, 128)
-        self.set_sub_client(
+        self.set_sub_worker(
             ote_receiver,
             role_rename_dict={"OTESender": "OTEReceiver", "OTEReceiver": "OTESender"},
         )
@@ -112,7 +112,7 @@ class OTESender(BaseClient):
         return self._q is not None and self._index < self._q.shape[0]
 
 
-class OTEReceiver(BaseClient):
+class OTEReceiver(BaseWorker):
 
     # 1-d uint8 array of 0 and 1, select bits for m OTs, length is m
     _r: np.ndarray
@@ -134,7 +134,7 @@ class OTEReceiver(BaseClient):
         self.base_sender = BaseSender()
 
     def init(self) -> None:
-        self.set_sub_client(
+        self.set_sub_worker(
             self.base_sender,
             role_rename_dict={"BaseSender": "OTEReceiver", "BaseReceiver": "OTESender"},
         )
@@ -156,7 +156,7 @@ class OTEReceiver(BaseClient):
 
     def ote_init(self, u: np.ndarray) -> None:
         ote_sender = OTESender(128)
-        self.set_sub_client(
+        self.set_sub_worker(
             ote_sender,
             role_rename_dict={"OTESender": "OTEReceiver", "OTEReceiver": "OTESender"},
         )

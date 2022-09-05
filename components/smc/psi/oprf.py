@@ -11,10 +11,10 @@ from components.smc.tools.serialize import (
     bytes_to_bit_arr,
     int_to_bytes,
 )
-from fedprotocol import BaseClient
+from fedprotocol import BaseWorker
 
 
-class OPRFClient(BaseClient):
+class OPRFClient(BaseWorker):
     _r: np.ndarray
     _t: np.ndarray
 
@@ -41,7 +41,7 @@ class OPRFClient(BaseClient):
         self.init()
 
     def init(self) -> None:
-        self.set_sub_client(
+        self.set_sub_worker(
             self.base_sender,
             role_rename_dict={"BaseSender": "OPRFClient", "BaseReceiver": "OPRFServer"},
         )
@@ -62,7 +62,7 @@ class OPRFClient(BaseClient):
 
     def ote_init(self, u: np.ndarray) -> None:
         ote_sender = OTESender(128)
-        self.set_sub_client(
+        self.set_sub_worker(
             ote_sender,
             role_rename_dict={"OTESender": "OPRFClient", "OTEReceiver": "OPRFServer"},
         )
@@ -93,7 +93,7 @@ class OPRFClient(BaseClient):
         return shake.read(length)
 
 
-class OPRFServer(BaseClient):
+class OPRFServer(BaseWorker):
     # s (select bits for prepare stage)
     _s: np.ndarray
     # q (keys)
@@ -115,7 +115,7 @@ class OPRFServer(BaseClient):
         return shake.read(length)
 
     def init(self) -> None:
-        self.set_sub_client(
+        self.set_sub_worker(
             self.base_receiver,
             role_rename_dict={"BaseSender": "OPRFClient", "BaseReceiver": "OPRFServer"},
         )
@@ -146,7 +146,7 @@ class OPRFServer(BaseClient):
 
     def ote_init(self, m: int, q_cols: T.List[bytes]) -> None:
         ote_receiver = OTEReceiver(self._s, 128)
-        self.set_sub_client(
+        self.set_sub_worker(
             ote_receiver,
             role_rename_dict={"OTESender": "OPRFClient", "OTEReceiver": "OPRFServer"},
         )

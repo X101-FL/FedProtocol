@@ -5,11 +5,11 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 
 import fedprotocol as fp
-from fedprotocol import BaseClient
+from fedprotocol import BaseWorker
 from fedprotocol.typing import Client, StateDict
 
 
-class PsiA(BaseClient):
+class PsiA(BaseWorker):
     def __init__(self):
         super().__init__('PSI', 'PsiA')
 
@@ -21,7 +21,7 @@ class PsiA(BaseClient):
         return result
 
 
-class PsiB(BaseClient):
+class PsiB(BaseWorker):
     def __init__(self):
         super().__init__('PSI', 'PsiB')
 
@@ -32,7 +32,7 @@ class PsiB(BaseClient):
         return result
 
 
-class ModelA(BaseClient):
+class ModelA(BaseWorker):
     def __init__(self):
         super().__init__('FedLR', 'ModelA')
         self.sk_model = None
@@ -61,7 +61,7 @@ class ModelA(BaseClient):
         self.sk_model = state_dict['sk_model']
 
 
-class ModelB(BaseClient):
+class ModelB(BaseWorker):
     def __init__(self):
         super().__init__('FedLR', 'ModelB')
         self.sk_transform = None
@@ -85,16 +85,16 @@ class ModelB(BaseClient):
         self.sk_transform = state_dict['sk_transform']
 
 
-class VFLA(BaseClient):
+class VFLA(BaseWorker):
     def __init__(self):
         super().__init__("VFL", "VFLA")
         self.psi_a = PsiA()
         self.model_a = ModelA()
 
     def init(self):
-        self.set_sub_client(self.psi_a,
+        self.set_sub_worker(self.psi_a,
                             role_bind_mapping={"PsiA": "VFLA", "PsiB": "VFLB"})
-        self.set_sub_client(self.model_a,
+        self.set_sub_worker(self.model_a,
                             role_bind_mapping={"ModelA": "VFLA", "ModelB": "VFLB"})
         return self
 
@@ -141,16 +141,16 @@ class VFLA(BaseClient):
         self.model_a.load_state_dict(state_dict['model_a'])
 
 
-class VFLB(BaseClient):
+class VFLB(BaseWorker):
     def __init__(self):
         super().__init__("VFL", "VFLB")
         self.psi_b = PsiB()
         self.model_b = ModelB()
 
     def init(self):
-        self.set_sub_client(self.psi_b,
+        self.set_sub_worker(self.psi_b,
                             role_bind_mapping={"PsiA": "VFLA", "PsiB": "VFLB"})
-        self.set_sub_client(self.model_b,
+        self.set_sub_worker(self.model_b,
                             role_bind_mapping={"ModelA": "VFLA", "ModelB": "VFLB"})
         return self
 
@@ -232,8 +232,8 @@ if __name__ == '__main__':
             entry_kwargs = {'ID_test': B_ID_test, 'X_test': B_X_test}
 
     fp.set_env(name='TCP') \
-        .add_client(role_name='VFLA', host="127.0.0.1", port=5601) \
-        .add_client(role_name='VFLB', host="127.0.0.1", port=5602) \
+        .add_worker(role_name='VFLA', host="127.0.0.1", port=5601) \
+        .add_worker(role_name='VFLB', host="127.0.0.1", port=5602) \
         .set_checkpoint_home(r'D:\Temp\fedPrototype') \
         .run(client=client, entry_func=args.entry_func, **entry_kwargs)
 

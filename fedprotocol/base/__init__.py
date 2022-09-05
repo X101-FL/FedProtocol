@@ -1,7 +1,4 @@
-from base_client import BaseClient
-from base_comm import BaseComm
-from base_env import BaseEnv
-from base_state_saver import BaseStateSaver
+from .base_worker import BaseWorker
 
 
-__all__ = ['BaseClient', 'BaseComm', 'BaseEnv', 'BaseStateSaver']
+__all__ = ['BaseWorker']

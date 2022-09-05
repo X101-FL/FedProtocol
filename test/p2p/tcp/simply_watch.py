@@ -1,8 +1,8 @@
 import fedprotocol as fp
-from fedprotocol import BaseClient
+from fedprotocol import BaseWorker
 
 
-class ClientA(BaseClient):
+class ClientA(BaseWorker):
 
     def __init__(self):
         super().__init__("SimplyWatch", 'PartA')
@@ -13,7 +13,7 @@ class ClientA(BaseClient):
             assert message_obj == f"hello PartA I'm {sender}"
 
 
-class ClientB(BaseClient):
+class ClientB(BaseWorker):
     def __init__(self, index):
         super().__init__("SimplyWatch", f'PartB.{index}')
 
@@ -38,10 +38,10 @@ if __name__ == '__main__':
         client = ClientB(index=args.part_b_index)
 
     fp.set_env(name='TCP') \
-        .add_client(role_name='PartA', host="127.0.0.1", port=5601) \
-        .add_client(role_name='PartB.1', host="127.0.0.1", port=5602) \
-        .add_client(role_name='PartB.2', host="127.0.0.1", port=5603) \
-        .add_client(role_name='PartB.3', host="127.0.0.1", port=5604) \
+        .add_worker(role_name='PartA', host="127.0.0.1", port=5601) \
+        .add_worker(role_name='PartB.1', host="127.0.0.1", port=5602) \
+        .add_worker(role_name='PartB.2', host="127.0.0.1", port=5603) \
+        .add_worker(role_name='PartB.3', host="127.0.0.1", port=5604) \
         .run(client=client)
 
 # cd test/p2p/tcp

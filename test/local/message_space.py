@@ -1,8 +1,8 @@
 import fedprotocol as fp
-from fedprotocol import BaseClient
+from fedprotocol import BaseWorker
 
 
-class Level2ClientA(BaseClient):
+class Level2ClientA(BaseWorker):
     def __init__(self):
         super().__init__("Level2", '2A')
 
@@ -15,15 +15,15 @@ class Level2ClientA(BaseClient):
         )
 
 
-class Level1ClientA(BaseClient):
+class Level1ClientA(BaseWorker):
     def __init__(self):
         super().__init__("Level1", '1A')
         self.l2_client1 = Level2ClientA().rename_protocol("Level2#1")
         self.l2_client2 = Level2ClientA().rename_protocol("Level2#2")
 
     def init(self):
-        self.set_sub_client(self.l2_client1, role_bind_mapping={"2A": "1A", "2B": "1B"})
-        self.set_sub_client(self.l2_client2, role_bind_mapping={"2A": "1A", "2B": "1B"})
+        self.set_sub_worker(self.l2_client1, role_bind_mapping={"2A": "1A", "2B": "1B"})
+        self.set_sub_worker(self.l2_client2, role_bind_mapping={"2A": "1A", "2B": "1B"})
         return self
 
     def run(self):
@@ -44,7 +44,7 @@ class Level1ClientA(BaseClient):
             self.l2_client2.run()
 
 
-class Level2ClientB(BaseClient):
+class Level2ClientB(BaseWorker):
     def __init__(self):
         super().__init__("Level2", '2B')
 
@@ -57,15 +57,15 @@ class Level2ClientB(BaseClient):
         self.comm.clear()
 
 
-class Level1ClientB(BaseClient):
+class Level1ClientB(BaseWorker):
     def __init__(self):
         super().__init__("Level1", '1B')
         self.l2_client1 = Level2ClientB().rename_protocol("Level2#1")
         self.l2_client2 = Level2ClientB().rename_protocol("Level2#2")
 
     def init(self):
-        self.set_sub_client(self.l2_client1, role_bind_mapping={"2A": "1A", "2B": "1B"})
-        self.set_sub_client(self.l2_client2, role_bind_mapping={"2A": "1A", "2B": "1B"})
+        self.set_sub_worker(self.l2_client1, role_bind_mapping={"2A": "1A", "2B": "1B"})
+        self.set_sub_worker(self.l2_client2, role_bind_mapping={"2A": "1A", "2B": "1B"})
         return self
 
     def run(self):
@@ -81,7 +81,7 @@ class Level1ClientB(BaseClient):
 
 
 if __name__ == '__main__':
-    fp.set_env(name='Local').add_client(Level1ClientA()).add_client(
+    fp.set_env(name='Local').add_worker(Level1ClientA()).add_worker(
         Level1ClientB()
     ).run()
 

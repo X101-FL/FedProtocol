@@ -3,12 +3,12 @@ import pyspark.serializers
 from pyspark import SparkContext
 
 import fedprotocol as fp
-from fedprotocol import BaseClient
+from fedprotocol import BaseWorker
 
 pyspark.serializers.cloudpickle = cloudpickle
 
 
-class ClientA(BaseClient):
+class ClientA(BaseWorker):
 
     def __init__(self):
         super().__init__("SimplyWatch", 'PartA')
@@ -19,7 +19,7 @@ class ClientA(BaseClient):
             assert message_obj == f"hello PartA I'm {sender}"
 
 
-class ClientB(BaseClient):
+class ClientB(BaseWorker):
     def __init__(self, index):
         super().__init__("SimplyWatch", f'PartB.{index}')
 
@@ -52,9 +52,9 @@ if __name__ == '__main__':
     rdd = get_client_spark_rdd(args)
 
     ans = fp.set_env(name='Spark') \
-        .add_client(role_name='PartA') \
-        .add_client(role_name='PartB.1') \
-        .add_client(role_name='PartB.2') \
+        .add_worker(role_name='PartA') \
+        .add_worker(role_name='PartB.1') \
+        .add_worker(role_name='PartB.2') \
         .set_coordinater_url("http://127.0.0.1:6609") \
         .set_job_id(job_id=client.protocol_name) \
         .run(client=client, rdd=rdd)

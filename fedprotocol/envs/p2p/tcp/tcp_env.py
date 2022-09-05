@@ -4,7 +4,7 @@ from typing import Any, Dict
 from fedprotocol.base.base_env import BaseEnv
 from fedprotocol.envs.p2p.tcp.tcp_comm import TCPComm
 from fedprotocol.envs.p2p.tcp.tcp_fed_server import FedServer
-from fedprotocol.tools.state_saver import LocalStateSaver
+from fedprotocol.tools.state_manager import LocalStateManager
 from fedprotocol.typing import Client, FileDir, Host, Port, RoleName, RootRoleName, Url
 
 
@@ -15,7 +15,7 @@ class TCPEnv(BaseEnv):
         self.root_role_name_url_dict: Dict[RootRoleName, Url] = {}
         self._default_setting()
 
-    def add_client(self, role_name: RoleName, host: Host, port: Port) -> "TCPEnv":
+    def add_worker(self, role_name: RoleName, host: Host, port: Port) -> "TCPEnv":
         self.root_role_name_ip_dict[role_name] = (host, port)
         self.root_role_name_url_dict[role_name] = f"http://{host}:{port}"
         return self
@@ -31,13 +31,13 @@ class TCPEnv(BaseEnv):
         return ans
 
     def set_checkpoint_home(self, home_dir: FileDir) -> "TCPEnv":
-        assert isinstance(self.state_saver, LocalStateSaver), \
-            f"set_checkpoint_home is not supported by {self.state_saver.__class__.__name__}"
-        self.state_saver.set_home_dir(home_dir)
+        assert isinstance(self.state_manager, LocalStateManager), \
+            f"set_checkpoint_home is not supported by {self.state_manager.__class__.__name__}"
+        self.state_manager.set_home_dir(home_dir)
         return self
 
     def _default_setting(self) -> None:
-        self.set_state_saver(LocalStateSaver())
+        self.set_state_manager(LocalStateManager())
 
     def _set_client(self, client: Client) -> None:
         client.env = self

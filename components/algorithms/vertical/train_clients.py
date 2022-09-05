@@ -8,10 +8,10 @@ from torch.utils.data.dataset import TensorDataset
 
 from components.algorithms.vertical.models import ActiveModel, PassiveModel
 from encrypt.paillier import PaillierKeypair, PaillierPublicKey
-from fedprotocol import BaseClient
+from fedprotocol import BaseWorker
 
 
-class ActiveTrainClient(BaseClient):
+class ActiveTrainClient(BaseWorker):
     encrypt_func: np.ufunc
     decrypt_func: np.ufunc
 
@@ -160,7 +160,7 @@ class ActiveTrainClient(BaseClient):
         pass
 
 
-class PassiveTrainClient(BaseClient):
+class PassiveTrainClient(BaseWorker):
     encrypt_func: np.ufunc
 
     def __init__(

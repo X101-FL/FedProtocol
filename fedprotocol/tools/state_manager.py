@@ -1,11 +1,11 @@
 import os
 
-from fedprotocol.base.base_state_saver import BaseStateSaver
+from fedprotocol.base.base_state_manager import BaseStateManager
 from fedprotocol.tools.io import load_pkl, save_pkl
 from fedprotocol.typing import FileDir, FilePath, StateDict, StateKey
 
 
-class LocalStateSaver(BaseStateSaver):
+class LocalStateManager(BaseStateManager):
     def __init__(self):
         self.home_dir = ''
 
@@ -21,7 +21,7 @@ class LocalStateSaver(BaseStateSaver):
         file_path = self._to_file_path(state_key)
         return load_pkl(file_path)
 
-    def set_home_dir(self, home_dir: FileDir) -> 'LocalStateSaver':
+    def set_home_dir(self, home_dir: FileDir) -> 'LocalStateManager':
         self.home_dir = home_dir
         return self
 

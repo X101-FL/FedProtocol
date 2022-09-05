@@ -5,7 +5,7 @@ from pyspark.rdd import RDD
 from fedprotocol.base.base_env import BaseEnv
 from fedprotocol.envs.cluster.spark.spark_comm import SparkComm
 from fedprotocol.envs.cluster.spark.spark_driver_runner import SparkDriverRunner
-from fedprotocol.tools.state_saver import LocalStateSaver
+from fedprotocol.tools.state_manager import LocalStateManager
 from fedprotocol.typing import Client, FileDir, RoleName, RootRoleName, Url
 from fedprotocol.tools.log import getLogger
 
@@ -20,7 +20,7 @@ class SparkEnv(BaseEnv):
         self.logger = getLogger("Frame.Spark.Env")
         self._default_setting()
 
-    def add_client(self, role_name: RoleName) -> 'SparkEnv':
+    def add_worker(self, role_name: RoleName) -> 'SparkEnv':
         self.root_role_name_set.add(role_name)
         return self
 
@@ -46,13 +46,13 @@ class SparkEnv(BaseEnv):
         return self
 
     def set_checkpoint_home(self, home_dir: FileDir) -> "SparkEnv":
-        assert isinstance(self.state_saver, LocalStateSaver), \
-            f"set_checkpoint_home is not supported by {self.state_saver.__class__.__name__}"
-        self.state_saver.set_home_dir(home_dir)
+        assert isinstance(self.state_manager, LocalStateManager), \
+            f"set_checkpoint_home is not supported by {self.state_manager.__class__.__name__}"
+        self.state_manager.set_home_dir(home_dir)
         return self
 
     def _default_setting(self) -> None:
-        self.set_state_saver(LocalStateSaver())
+        self.set_state_manager(LocalStateManager())
 
     def _set_client(self, client: Client, server_url: Url) -> None:
         client.env = self
