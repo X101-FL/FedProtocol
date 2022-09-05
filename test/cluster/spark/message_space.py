@@ -2,6 +2,7 @@ import cloudpickle
 import pyspark.serializers
 from pyspark import SparkContext
 
+import fedprotocol as fp
 from fedprotocol import BaseClient
 
 pyspark.serializers.cloudpickle = cloudpickle
@@ -108,7 +109,7 @@ if __name__ == '__main__':
     client = eval(f"{args.role}()")
     rdd = get_client_spark_rdd(args)
 
-    ans = SparkEnv() \
+    ans = fp.set_env(name='Spark') \
         .add_client(role_name='1A') \
         .add_client(role_name='1B') \
         .set_coordinater_url("http://127.0.0.1:6609") \

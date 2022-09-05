@@ -4,6 +4,7 @@ import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 
+import fedprotocol as fp
 from fedprotocol import BaseClient
 from fedprotocol.typing import Client, StateDict
 
@@ -208,13 +209,13 @@ if __name__ == '__main__':
         B_ID_train, B_X_train, \
         B_ID_test, B_X_test = make_dataset()
 
-    LocalEnv() \
+    fp.set_env(name='Local') \
         .add_client(VFLA(), entry_func='train', ID_train=A_ID_train, X_train=A_X_train, Y_train=Y_train) \
         .add_client(VFLB(), entry_func='train', ID_train=B_ID_train, X_train=B_X_train) \
         .set_checkpoint_home(r'D:\Temp\fedPrototype') \
         .run()
 
-    LocalEnv() \
+    fp.set_env(name='Local') \
         .add_client(VFLA(), entry_func='test', ID_test=A_ID_test, X_test=A_X_test, Y_test=Y_test) \
         .add_client(VFLB(), entry_func='test', ID_test=B_ID_test, X_test=B_X_test) \
         .set_checkpoint_home(r'D:\Temp\fedPrototype') \

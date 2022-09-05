@@ -2,6 +2,7 @@ import cloudpickle
 import pyspark.serializers
 from pyspark import SparkContext
 
+import fedprotocol as fp
 from fedprotocol import BaseClient
 
 pyspark.serializers.cloudpickle = cloudpickle
@@ -42,8 +43,6 @@ def get_args():
 
 
 if __name__ == '__main__':
-    from fedprotocol.envs import SparkEnv
-
     args = get_args()
     if args.role == ClientA.__name__:
         client = ClientA()
@@ -52,7 +51,7 @@ if __name__ == '__main__':
 
     rdd = get_client_spark_rdd(args)
 
-    ans = SparkEnv() \
+    ans = fp.set_env(name='Spark') \
         .add_client(role_name='PartA') \
         .add_client(role_name='PartB.1') \
         .add_client(role_name='PartB.2') \

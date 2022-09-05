@@ -1,14 +1,18 @@
+import fedprotocol as fp
 from fedprotocol import BaseClient
 
 
 class ClientA(BaseClient):
-
     def __init__(self):
         super().__init__("SimplyWatch", 'PartA')
 
     def run(self):
-        for sender, message_name, message_obj in self.comm.watch('PartB.', 'test_b_to_a'):
-            self.logger.info(f"get a message from {sender}:{message_name} = {message_obj}")
+        for sender, message_name, message_obj in self.comm.watch(
+            'PartB.', 'test_b_to_a'
+        ):
+            self.logger.info(
+                f"get a message from {sender}:{message_name} = {message_obj}"
+            )
             assert message_obj == f"hello PartA I'm {sender}"
 
 
@@ -21,10 +25,10 @@ class ClientB(BaseClient):
 
 
 if __name__ == '__main__':
-    from fedprotocol.envs import LocalEnv
-
-    env = LocalEnv()
+    env = fp.set_env(name='Local')
     for index in range(5):
         env.add_client(ClientB(index))
     env.add_client(ClientA())
     env.run()
+
+# PYTHONPATH=. python test/local/simply_watch.py

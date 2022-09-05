@@ -4,6 +4,7 @@ import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 
+import fedprotocol as fp
 from fedprotocol import BaseClient
 from fedprotocol.typing import Client, StateDict
 
@@ -210,7 +211,6 @@ def get_args():
 
 
 if __name__ == '__main__':
-    from fedprotocol.envs import TCPEnv
     args = get_args()
 
     A_ID_train, A_X_train, Y_train, \
@@ -231,7 +231,7 @@ if __name__ == '__main__':
         else:
             entry_kwargs = {'ID_test': B_ID_test, 'X_test': B_X_test}
 
-    TCPEnv()\
+    fp.set_env(name='TCP') \
         .add_client(role_name='VFLA', host="127.0.0.1", port=5601) \
         .add_client(role_name='VFLB', host="127.0.0.1", port=5602) \
         .set_checkpoint_home(r'D:\Temp\fedPrototype') \

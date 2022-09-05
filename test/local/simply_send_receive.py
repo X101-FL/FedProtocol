@@ -1,8 +1,8 @@
+import fedprotocol as fp
 from fedprotocol import BaseClient
 
 
 class ClientA(BaseClient):
-
     def __init__(self):
         super().__init__('SimplyTest', 'PartA')
 
@@ -31,9 +31,6 @@ class ClientB(BaseClient):
 
 
 if __name__ == '__main__':
-    from fedprotocol.envs import LocalEnv
+    fp.set_env(name='Local').add_client(ClientA()).add_client(ClientB()).run()
 
-    LocalEnv() \
-        .add_client(ClientA()) \
-        .add_client(ClientB()) \
-        .run()
+# PYTHONPATH=. python test/local/simply_send_receive.py

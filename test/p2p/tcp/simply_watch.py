@@ -1,3 +1,4 @@
+import fedprotocol as fp
 from fedprotocol import BaseClient
 
 
@@ -30,15 +31,13 @@ def get_args():
 
 
 if __name__ == '__main__':
-    from fedprotocol.envs import TCPEnv
-
     args = get_args()
     if args.role == ClientA.__name__:
         client = ClientA()
     else:
         client = ClientB(index=args.part_b_index)
 
-    TCPEnv() \
+    fp.set_env(name='TCP') \
         .add_client(role_name='PartA', host="127.0.0.1", port=5601) \
         .add_client(role_name='PartB.1', host="127.0.0.1", port=5602) \
         .add_client(role_name='PartB.2', host="127.0.0.1", port=5603) \
