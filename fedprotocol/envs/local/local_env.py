@@ -63,7 +63,7 @@ class LocalEnv(BaseEnv):
 
     def _set_worker(self, worker: Worker) -> None:
         worker.env = self
-        worker.track_path = f"{worker.protocol_name}.{worker.role_name}"
+        worker.track_path = f"{worker.protocol_name}-{worker.role_name}"
         worker.comm = self._get_comm(worker)
         worker._set_comm_logger()  # 这里调用了私有函数，因为这个函数不应暴露给用户
         worker._active_comm()

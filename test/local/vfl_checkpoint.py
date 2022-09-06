@@ -6,7 +6,7 @@ from sklearn.preprocessing import StandardScaler
 
 import fedprotocol as fp
 from fedprotocol import BaseWorker
-from fedprotocol.typing import Client, StateDict
+from fedprotocol.typing import Worker, StateDict
 
 
 class PsiA(BaseWorker):
@@ -37,7 +37,7 @@ class ModelA(BaseWorker):
         super().__init__('FedLR', 'ModelA')
         self.sk_model = None
 
-    def init(self) -> Client:
+    def init(self) -> Worker:
         self.sk_model = LogisticRegression(max_iter=10, warm_start=True)
         return self
 
@@ -66,7 +66,7 @@ class ModelB(BaseWorker):
         super().__init__('FedLR', 'ModelB')
         self.sk_transform = None
 
-    def init(self) -> Client:
+    def init(self) -> Worker:
         self.sk_transform = StandardScaler()
         return self
 
@@ -161,7 +161,6 @@ class VFLB(BaseWorker):
         _selector = np.array([_id_order[inter_id] for inter_id in intersect_ids])
 
         X_train = X_train[_selector]
-
         with self.model_b.init():
             self.model_b.restore(non_exist='None')
             while self.comm.receive('VFLA', 'new_epoch'):
@@ -202,21 +201,19 @@ def make_dataset():
 
 
 if __name__ == '__main__':
-    from fedprotocol.envs import LocalEnv
-
     A_ID_train, A_X_train, Y_train, \
         A_ID_test, A_X_test, Y_test, \
         B_ID_train, B_X_train, \
         B_ID_test, B_X_test = make_dataset()
-
+    
     fp.set_env(name='Local') \
         .add_worker(VFLA(), entry_func='train', ID_train=A_ID_train, X_train=A_X_train, Y_train=Y_train) \
         .add_worker(VFLB(), entry_func='train', ID_train=B_ID_train, X_train=B_X_train) \
-        .set_checkpoint_home(r'D:\Temp\fedPrototype') \
+        .set_checkpoint_home(r'/tmp/fedprotocol') \
         .run()
 
     fp.set_env(name='Local') \
         .add_worker(VFLA(), entry_func='test', ID_test=A_ID_test, X_test=A_X_test, Y_test=Y_test) \
         .add_worker(VFLB(), entry_func='test', ID_test=B_ID_test, X_test=B_X_test) \
-        .set_checkpoint_home(r'D:\Temp\fedPrototype') \
+        .set_checkpoint_home(r'/tmp/fedprotocol') \
         .run()
