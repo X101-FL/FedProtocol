@@ -235,7 +235,7 @@ if __name__ == '__main__':
         .add_worker(role_name='VFLA', host="127.0.0.1", port=5601) \
         .add_worker(role_name='VFLB', host="127.0.0.1", port=5602) \
         .set_checkpoint_home(r'D:\Temp\fedPrototype') \
-        .run(client=client, entry_func=args.entry_func, **entry_kwargs)
+        .run(worker=client, entry_func=args.entry_func, **entry_kwargs)
 
 
 # cd test/p2p/tcp

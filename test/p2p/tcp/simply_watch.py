@@ -42,7 +42,7 @@ if __name__ == '__main__':
         .add_worker(role_name='PartB.1', host="127.0.0.1", port=5602) \
         .add_worker(role_name='PartB.2', host="127.0.0.1", port=5603) \
         .add_worker(role_name='PartB.3', host="127.0.0.1", port=5604) \
-        .run(client=client)
+        .run(worker=client)
 
 # cd test/p2p/tcp
 # python simply_watch.py --role ClientA
