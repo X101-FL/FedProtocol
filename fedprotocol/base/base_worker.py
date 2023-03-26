@@ -95,7 +95,7 @@ class BaseWorker(ABC):
 
     def _set_track_path(self, upper_worker: Worker) -> Worker:
         self.track_path = (
-            f"{upper_worker.track_path}/{self.protocol_name}-{self.role_name}"
+            f"{upper_worker.track_path}/{self.protocol_name}.{self.role_name}"
         )
         return self
 
