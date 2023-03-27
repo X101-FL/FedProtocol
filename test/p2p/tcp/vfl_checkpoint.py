@@ -6,7 +6,7 @@ from sklearn.preprocessing import StandardScaler
 
 import fedprotocol as fp
 from fedprotocol import BaseWorker
-from fedprotocol.typing import Client, StateDict
+from fedprotocol.typing import Worker, StateDict
 
 
 class PsiA(BaseWorker):
@@ -37,7 +37,7 @@ class ModelA(BaseWorker):
         super().__init__('FedLR', 'ModelA')
         self.sk_model = None
 
-    def init(self) -> Client:
+    def init(self) -> Worker:
         self.sk_model = LogisticRegression(max_iter=10, warm_start=True)
         return self
 
@@ -66,7 +66,7 @@ class ModelB(BaseWorker):
         super().__init__('FedLR', 'ModelB')
         self.sk_transform = None
 
-    def init(self) -> Client:
+    def init(self) -> Worker:
         self.sk_transform = StandardScaler()
         return self
 
@@ -234,13 +234,14 @@ if __name__ == '__main__':
     fp.set_env(name='TCP') \
         .add_worker(role_name='VFLA', host="127.0.0.1", port=5601) \
         .add_worker(role_name='VFLB', host="127.0.0.1", port=5602) \
-        .set_checkpoint_home(r'D:\Temp\fedPrototype') \
+        .set_checkpoint_home(r'/tmp/fedPrototype') \
         .run(worker=client, entry_func=args.entry_func, **entry_kwargs)
 
 
-# cd test/p2p/tcp
-# python vfl_checkpoint.py --role VFLA --entry_func train
-# python vfl_checkpoint.py --role VFLB --entry_func train
+# In root folder
 
-# python vfl_checkpoint.py --role VFLA --entry_func test
-# python vfl_checkpoint.py --role VFLB --entry_func test
+# PYTHONPATH=. python test/p2p/tcp/vfl_checkpoint.py --role VFLA --entry_func train
+# PYTHONPATH=. python test/p2p/tcp/vfl_checkpoint.py --role VFLB --entry_func train
+
+# PYTHONPATH=. python test/p2p/tcp/vfl_checkpoint.py --role VFLA --entry_func test
+# PYTHONPATH=. python test/p2p/tcp/vfl_checkpoint.py --role VFLB --entry_func test
