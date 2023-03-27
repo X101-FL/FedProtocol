@@ -91,7 +91,7 @@ if __name__ == '__main__':
     fp.set_env(name='TCP') \
         .add_worker(role_name='1A', host="127.0.0.1", port=5601) \
         .add_worker(role_name='1B', host="127.0.0.1", port=5602) \
-        .run(client=client)
+        .run(worker=client)
 
 # cd test/p2p/tcp
 # python message_space.py Level1ClientA
