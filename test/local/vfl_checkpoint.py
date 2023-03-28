@@ -217,3 +217,5 @@ if __name__ == '__main__':
         .add_worker(VFLB(), entry_func='test', ID_test=B_ID_test, X_test=B_X_test) \
         .set_checkpoint_home(r'/tmp/fedprotocol') \
         .run()
+
+# PYTHONPATH=. python test/local/vfl_checkpoint.py

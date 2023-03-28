@@ -44,8 +44,7 @@ if __name__ == '__main__':
         .add_worker(role_name='PartB.3', host="127.0.0.1", port=5604) \
         .run(worker=client)
 
-# cd test/p2p/tcp
-# python simply_watch.py --role ClientA
-# python simply_watch.py --role ClientB --part_b_index 1
-# python simply_watch.py --role ClientB --part_b_index 2
-# python simply_watch.py --role ClientB --part_b_index 3
+# PYTHONPATH=. python test/p2p/tcp/simply_watch.py --role ClientA
+# PYTHONPATH=. python test/p2p/tcp/simply_watch.py --role ClientB --part_b_index 1
+# PYTHONPATH=. python test/p2p/tcp/simply_watch.py --role ClientB --part_b_index 2
+# PYTHONPATH=. python test/p2p/tcp/simply_watch.py --role ClientB --part_b_index 3

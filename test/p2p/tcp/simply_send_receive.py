@@ -42,6 +42,5 @@ if __name__ == '__main__':
         .add_worker(role_name='PartB', host="127.0.0.1", port=5602) \
         .run(worker=client)
 
-# cd test/p2p/tcp
-# python simply_send_receive.py ClientA
-# python simply_send_receive.py ClientB
+# PYTHONPATH=. python test/p2p/tcp/simply_send_receive.py ClientA
+# PYTHONPATH=. python test/p2p/tcp/simply_send_receive.py ClientB

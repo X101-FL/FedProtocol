@@ -93,6 +93,5 @@ if __name__ == '__main__':
         .add_worker(role_name='1B', host="127.0.0.1", port=5602) \
         .run(worker=client)
 
-# cd test/p2p/tcp
-# python message_space.py Level1ClientA
-# python message_space.py Level1ClientB
+# PYTHONPATH=. python test/p2p/tcp/message_space.py Level1ClientA
+# PYTHONPATH=. python test/p2p/tcp/message_space.py Level1ClientB
